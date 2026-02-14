@@ -40,3 +40,7 @@ Thumbs.db
 # Temporary files
 /tmp/
 *.tmp
+
+# Local system configuration (autostart)
+japanese-text-analyzer.service
+install-autostart.sh
