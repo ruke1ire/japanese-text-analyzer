@@ -1,0 +1,5 @@
+# This directory contains runtime data
+# Subdirectories will be created automatically:
+# - database/
+# - dictionaries/
+# - models/

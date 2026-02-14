@@ -1,0 +1,49 @@
+services:
+  backend:
+    build: ./backend
+    container_name: japanese-analyzer-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/database:/app/data/database
+      - ./data/dictionaries:/app/data/dictionaries
+      - ./data/models:/app/data/models
+    environment:
+      - DATABASE_PATH=/app/data/database/japanese_analyzer.db
+      - TRANSLATION_METHOD=${TRANSLATION_METHOD:-llamacpp}
+      - DEEPL_API_KEY=${DEEPL_API_KEY:-}
+      - LLAMACPP_URL=http://llamacpp:8080
+      - ALLOWED_ORIGINS=*
+    restart: unless-stopped
+    depends_on:
+      llamacpp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  llamacpp:
+    build: ./llamacpp
+    container_name: japanese-analyzer-llamacpp
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/models:/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build: ./frontend
+    container_name: japanese-analyzer-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+*.pyc
+
+# Database and data
+data/database/*.db
+data/database/*.db-journal
+data/dictionaries/*.gz
+data/dictionaries/*.xml
+data/models/*.gguf
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+*.pid
+
+# Temporary files
+/tmp/
+*.tmp

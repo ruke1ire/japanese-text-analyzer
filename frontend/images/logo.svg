@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Japanese character 文 -->
+  <text x="150" y="380" font-size="180" font-family="'Noto Sans JP', sans-serif" fill="#5FB3B3" font-weight="500">文</text>
+
+  <!-- Latin character A -->
+  <text x="380" y="320" font-size="240" font-family="Arial, sans-serif" fill="#5FB3B3" font-weight="600">A</text>
+
+  <!-- Top curved arrow (文 to A) -->
+  <path d="M 240 120 Q 350 60 420 130" fill="none" stroke="#4A5568" stroke-width="28" stroke-linecap="round"/>
+  <path d="M 420 130 L 390 100 M 420 130 L 450 120" fill="none" stroke="#4A5568" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Bottom curved arrow (A to 文) -->
+  <path d="M 420 470 Q 310 530 240 460" fill="none" stroke="#4A5568" stroke-width="28" stroke-linecap="round"/>
+  <path d="M 240 460 L 270 490 M 240 460 L 210 470" fill="none" stroke="#4A5568" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
