@@ -1,16 +1,53 @@
 # Japanese Text Analyzer
 
-A fully offline Japanese text analysis tool with furigana display, word definitions, kanji breakdown, and machine translation. Runs entirely on your local machine with zero internet dependency.
+A fully offline-capable Japanese text analysis tool with furigana display, word definitions, kanji breakdown, and machine translation. Runs entirely on your local machine with zero internet dependency (optional DeepL API integration available).
+
+*Inspired by [Nihongodera Furigana Maker](https://nihongodera.com/tools/furigana-maker)*
 
 ## Features
 
 - **Furigana Display**: Automatic hiragana readings above kanji characters
 - **Word Definitions**: Click any word for English meanings, part of speech, and JLPT level (215k+ words from JMdict)
 - **Kanji Breakdown**: Individual kanji information including readings, meanings, stroke count, and grade (13k+ kanji from KANJIDIC2)
-- **Offline Translation**: Fully local Japanese-English translation using LiquidAI LFM2-350M model (no API keys required)
+- **Translation Options**:
+  - **Offline Translation** (default): Fully local Japanese-English translation using LiquidAI LFM2-350M model - no API keys or internet required
+  - **DeepL API** (optional): High-quality cloud translation for users who prefer it
+  - **No Translation**: Analysis and dictionary features only
 - **Text Formatting**: Preserves spaces and newlines in analyzed text
-- **100% Offline**: All analysis, dictionaries, and translation run locally with zero latency
+- **100% Offline Capable**: All core features (analysis, dictionaries, translation) can run locally with zero internet dependency
 - **Cross-platform**: Works on Mac, Linux, and anywhere Docker runs
+
+## Screenshots
+
+### Furigana Analysis
+![Main interface showing Japanese text with furigana readings above kanji characters](docs/images/analysis-view.png)
+
+The main interface displays analyzed Japanese text with automatic furigana (hiragana readings) above kanji. Users can switch between translation methods (Offline, DeepL, or None) using the dropdown menu.
+
+### Word Definitions
+![Word definition popup showing meanings, part of speech, and kanji breakdown](docs/images/word-definition.png)
+
+Click any word to see detailed definitions organized by part of speech, including English meanings and clickable kanji for further exploration.
+
+### Kanji Details
+![Kanji information modal displaying readings, meanings, stroke count, and JLPT level](docs/images/kanji-details.png)
+
+Individual kanji characters can be explored in depth, showing:
+- On'yomi and kun'yomi readings
+- English meanings
+- Stroke count and school grade
+- JLPT level and frequency rank
+- Radical information
+
+### Offline Translation
+![Translation example using the local LFM2-350M model showing a cooking recipe translated from Japanese to English](docs/images/translation-example.png)
+
+Fully offline translation powered by the LFM2-350M model running locally via llama.cpp. The translation method dropdown allows switching between:
+- **Offline (Local Model)** - 100% private, no internet required
+- **DeepL API** - High-quality cloud translation
+- **No Translation** - Analysis only
+
+The example shows a Japanese cooking recipe being translated to English entirely on your local machine, with the method indicator showing "llamacpp" to confirm it's using the offline model.
 
 ## Tech Stack
 
@@ -102,25 +139,28 @@ docker compose down
 
 ### Translation Methods
 
+The application is **fully offline by default**. All features work without internet access. You can optionally enable DeepL API for cloud translation if desired.
+
 Edit the `.env` file to configure your preferred translation method:
 
-**Option 1: Offline Translation (default)** - Fully local, no API required
+**Option 1: Offline Translation (default)** - 100% local, no API or internet required
 ```
 TRANSLATION_METHOD=llamacpp
 ```
-Uses the LFM2-350M model running locally via llama.cpp. Requires model download (see Installation step 3).
+Uses the LFM2-350M model running locally via llama.cpp. Completely private and offline. Requires model download (see Installation step 4).
 
-**Option 2: DeepL API** - Online, high quality
+**Option 2: DeepL API (optional)** - Cloud-based
 ```
 TRANSLATION_METHOD=deepl
 DEEPL_API_KEY=your-api-key-here
 ```
-Get a free DeepL API key at: https://www.deepl.com/pro-api
+For users who prefer cloud translation and have internet access. Get a free API key at: https://www.deepl.com/pro-api
 
 **Option 3: No translation**
 ```
 TRANSLATION_METHOD=none
 ```
+Disables translation feature entirely. Analysis and dictionary features still work fully offline.
 
 After changing `.env`, restart the services:
 ```bash
@@ -332,13 +372,19 @@ docker compose logs frontend
 
 ## License
 
-This project uses open-source components:
+MIT License - See LICENSE file for details
+
+**Third-Party Components**:
 - Dictionary data (JMdict, KANJIDIC) is provided by the Electronic Dictionary Research and Development Group under CC BY-SA 4.0
-- LFM2-350M model follows its respective license from Liquid AI
-- Code is provided as-is for educational and personal use
+- LFM2-350M model follows lfm1.0 license from Liquid AI
+- All other dependencies retain their respective licenses
 
 ## Credits
 
+**Inspiration**:
+- [Nihongodera Furigana Maker](https://nihongodera.com/tools/furigana-maker) - Original inspiration for this project
+
+**Open Source Components**:
 - Electronic Dictionary Research and Development Group (EDRDG) - JMdict and KANJIDIC2 dictionaries
 - Liquid AI - LFM2-350M translation model
 - ggml-org - llama.cpp inference engine
