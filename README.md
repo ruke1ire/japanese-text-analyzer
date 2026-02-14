@@ -227,39 +227,6 @@ python3 -m http.server 3000
 
 Frontend will be available at http://localhost:3000
 
-## Deployment on Other Devices
-
-This project is designed to be fully portable. To deploy on a new machine:
-
-### Fresh Installation (Recommended)
-
-Simply follow the [Quick Start](#quick-start) instructions on the new machine. All setup is automated.
-
-### Transfer Existing Data (Optional - Save Time/Bandwidth)
-
-If you've already set up the project and want to avoid re-downloading dictionaries and models:
-
-1. **On the original machine**, copy the `data/` directory:
-   ```bash
-   tar -czf japanese-analyzer-data.tar.gz data/
-   ```
-
-2. **Transfer** `japanese-analyzer-data.tar.gz` to the new machine
-
-3. **On the new machine**:
-   ```bash
-   git clone https://github.com/ruke1ire/japanese-text-analyzer.git
-   cd japanese-text-analyzer
-   tar -xzf ../japanese-analyzer-data.tar.gz
-   cp .env.example .env
-   docker compose up -d
-   ```
-
-This transfers:
-- SQLite database (10MB) - 215k words, 13k kanji
-- Dictionary source files (35MB compressed)
-- Translation model (219MB) - saves download time
-
 ## Project Structure
 
 ```
