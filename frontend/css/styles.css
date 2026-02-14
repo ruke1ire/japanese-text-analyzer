@@ -192,7 +192,7 @@ rt {
 }
 
 .token:hover {
-    background-color: var(--bg-color);
+    background-color: #dbeafe;
 }
 
 .translation-text {

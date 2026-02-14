@@ -142,4 +142,10 @@ export function setupModalClose(modal) {
             modal.style.display = 'none';
         }
     };
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.style.display === 'block') {
+            modal.style.display = 'none';
+        }
+    });
 }
