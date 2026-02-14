@@ -31,6 +31,9 @@ services:
       - "8080:8080"
     volumes:
       - ./data/models:/models
+    environment:
+      # Change this to use different quantization (Q4_0, Q4_K_M, Q5_K_M, Q6_K, Q8_0, F16, F32)
+      - MODEL_FILE=${MODEL_FILE:-LFM2-350M-ENJP-MT-Q4_K_M.gguf}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

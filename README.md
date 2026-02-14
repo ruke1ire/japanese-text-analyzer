@@ -63,7 +63,7 @@ The example shows a Japanese cooking recipe being translated to English entirely
 
 - Docker (with compose plugin)
 - 2.5GB free disk space (dictionaries + database + translation model)
-- 4GB RAM recommended (for translation model)
+- 1GB RAM minimum (for Q4 quantized translation model)
 - Internet connection (only for initial setup)
 
 ### Installation
@@ -92,16 +92,32 @@ The example shows a Japanese cooking recipe being translated to English entirely
    - Import ~215k words and ~13k kanji
 
 4. **Download the translation model** (one-time setup, ~1 minute)
+
+   **Default (recommended for most users)**:
    ```bash
    python3 backend/scripts/download_translation_model.py
    ```
+   Downloads Q4_K_M (229MB, 1-2GB RAM, good balance)
 
-   This will download the LFM2-350M GGUF model (219MB) to `data/models/`.
+   **For different device specs**:
+   ```bash
+   # Low RAM (1GB):      Q4_0 - 219MB
+   python3 backend/scripts/download_translation_model.py Q4_0
 
-   Alternatively, manually download from:
-   https://huggingface.co/LiquidAI/LFM2-350M-ENJP-MT-GGUF/resolve/main/LFM2-350M-ENJP-MT-Q4_K_M.gguf
+   # Better quality:     Q5_K_M - 260MB
+   python3 backend/scripts/download_translation_model.py Q5_K_M
 
-   And place it in: `data/models/LFM2-350M-ENJP-MT-Q4_K_M.gguf`
+   # High quality:       Q8_0 - 379MB (requires 2-4GB RAM)
+   python3 backend/scripts/download_translation_model.py Q8_0
+
+   # List all options:
+   python3 backend/scripts/download_translation_model.py --help
+   ```
+
+   If you downloaded a non-default quantization, update `.env`:
+   ```bash
+   MODEL_FILE=LFM2-350M-ENJP-MT-Q4_0.gguf  # or your chosen quantization
+   ```
 
 5. **Start the application**
    ```bash
@@ -213,33 +229,36 @@ Frontend will be available at http://localhost:3000
 
 ## Deployment on Other Devices
 
-This project is designed to be fully portable. To run on a different machine:
+This project is designed to be fully portable. To deploy on a new machine:
 
-### Method 1: Transfer Everything (Recommended)
+### Fresh Installation (Recommended)
 
-1. **Copy the entire project folder** to the new machine
-2. **Ensure Docker and Docker Compose are installed**
-3. **Start the application**:
+Simply follow the [Quick Start](#quick-start) instructions on the new machine. All setup is automated.
+
+### Transfer Existing Data (Optional - Save Time/Bandwidth)
+
+If you've already set up the project and want to avoid re-downloading dictionaries and models:
+
+1. **On the original machine**, copy the `data/` directory:
    ```bash
+   tar -czf japanese-analyzer-data.tar.gz data/
+   ```
+
+2. **Transfer** `japanese-analyzer-data.tar.gz` to the new machine
+
+3. **On the new machine**:
+   ```bash
+   git clone https://github.com/ruke1ire/japanese-text-analyzer.git
    cd japanese-text-analyzer
+   tar -xzf ../japanese-analyzer-data.tar.gz
+   cp .env.example .env
    docker compose up -d
    ```
 
-If you've already downloaded the dictionaries and model, they're in the `data/` directory and will work immediately on the new machine.
-
-### Method 2: Fresh Installation
-
-1. **Copy only the source code** (exclude `data/` directory)
-2. **Run the initialization steps** on the new machine (see Quick Start)
-
-### Docker Volumes
-
-All data is stored in the `data/` directory and mounted as Docker volumes:
-- `data/database/` - SQLite database (10MB)
-- `data/dictionaries/` - Dictionary source files (35MB compressed)
-- `data/models/` - Translation model (219MB)
-
-You can backup or transfer just the `data/` folder to preserve all imported data across machines.
+This transfers:
+- SQLite database (10MB) - 215k words, 13k kanji
+- Dictionary source files (35MB compressed)
+- Translation model (219MB) - saves download time
 
 ## Project Structure
 
