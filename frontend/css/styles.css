@@ -223,12 +223,15 @@ rt {
 .modal-content {
     background: var(--surface-color);
     margin: 10% auto;
-    padding: 2rem;
+    padding: 0;
     border-radius: 8px;
     max-width: 600px;
+    max-height: 80vh;
     box-shadow: var(--shadow-lg);
     position: relative;
     animation: slideDown 0.3s;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes slideDown {
@@ -249,6 +252,21 @@ rt {
     font-size: 1.5rem;
     cursor: pointer;
     color: var(--text-secondary);
+    z-index: 10;
+    background: var(--surface-color);
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+#definition-content,
+#kanji-content {
+    padding: 2rem;
+    overflow-y: auto;
+    max-height: 80vh;
 }
 
 .modal-close:hover {
@@ -422,7 +440,13 @@ footer a:hover {
 
     .modal-content {
         margin: 5% 1rem;
+        max-height: 90vh;
+    }
+
+    #definition-content,
+    #kanji-content {
         padding: 1.5rem;
+        max-height: 90vh;
     }
 
     .kanji-details {
