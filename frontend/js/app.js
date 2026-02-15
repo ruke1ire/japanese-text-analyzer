@@ -6,6 +6,7 @@ import { JapaneseAnalyzerAPI } from './api.js';
 import { renderAnalyzedText, attachTokenClickHandlers } from './components/text-display.js';
 import { showDefinitionPopup, setupModalClose as setupDefModalClose } from './components/definition-popup.js';
 import { showKanjiDetails, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
+import { renderHistory, generatePreview, setupHistorySidebar } from './components/history-sidebar.js';
 
 // Initialize API client
 const api = new JapaneseAnalyzerAPI();
@@ -13,6 +14,9 @@ const api = new JapaneseAnalyzerAPI();
 // State
 let currentTokens = [];
 let currentText = '';
+let analysisHistory = [];
+const MAX_HISTORY_ENTRIES = 20;
+let currentHistoryId = null;
 
 // DOM elements
 const inputText = document.getElementById('input-text');
@@ -28,6 +32,9 @@ const translationText = document.getElementById('translation-text');
 const translationMethodInfo = document.getElementById('translation-method-info');
 const definitionModal = document.getElementById('definition-modal');
 const kanjiModal = document.getElementById('kanji-modal');
+const historySidebar = document.getElementById('history-sidebar');
+const historyList = document.getElementById('history-list');
+const clearHistoryBtn = document.getElementById('clear-history-btn');
 
 // Initialize
 function init() {
@@ -35,6 +42,7 @@ function init() {
     analyzeBtn.addEventListener('click', handleAnalyze);
     translateBtn.addEventListener('click', handleTranslate);
     clearBtn.addEventListener('click', handleClear);
+    clearHistoryBtn.addEventListener('click', handleClearHistory);
 
     // Load saved translation method preference
     const savedMethod = localStorage.getItem('translationMethod');
@@ -53,6 +61,15 @@ function init() {
 
     // Setup token click handlers
     attachTokenClickHandlers(analyzedTextContainer, handleTokenClick);
+
+    // Setup history sidebar
+    setupHistorySidebar(historySidebar);
+
+    // Render initial empty history
+    renderHistory(analysisHistory, historyList, {
+        onEntryClick: handleHistoryEntryClick,
+        activeId: currentHistoryId
+    });
 
     // Check API health
     checkAPIHealth();
@@ -87,6 +104,33 @@ async function handleAnalyze() {
         // Update state
         currentTokens = result.tokens;
         currentText = text;
+
+        // Create history entry
+        const historyEntry = {
+            id: Date.now().toString(),
+            text: text,
+            preview: generatePreview(text),
+            tokens: currentTokens,
+            timestamp: Date.now(),
+            translation: null,
+            translationMethod: null
+        };
+
+        // Add to history (newest first)
+        analysisHistory.unshift(historyEntry);
+
+        // Limit size
+        if (analysisHistory.length > MAX_HISTORY_ENTRIES) {
+            analysisHistory = analysisHistory.slice(0, MAX_HISTORY_ENTRIES);
+        }
+
+        currentHistoryId = historyEntry.id;
+
+        // Render sidebar
+        renderHistory(analysisHistory, historyList, {
+            onEntryClick: handleHistoryEntryClick,
+            activeId: currentHistoryId
+        });
 
         // Render results - pass original text to preserve formatting
         renderAnalyzedText(currentTokens, analyzedTextContainer, text);
@@ -137,6 +181,15 @@ async function handleTranslate() {
             translationSection.style.display = 'block';
         }
 
+        // Update current history entry with translation
+        if (currentHistoryId && analysisHistory.length > 0) {
+            const currentEntry = analysisHistory.find(entry => entry.id === currentHistoryId);
+            if (currentEntry) {
+                currentEntry.translation = result.translation;
+                currentEntry.translationMethod = result.method;
+            }
+        }
+
     } catch (error) {
         console.error('Translation error:', error);
         alert(`Translation failed: ${error.message}`);
@@ -150,8 +203,57 @@ function handleClear() {
     inputText.value = '';
     currentTokens = [];
     currentText = '';
+    currentHistoryId = null;
     outputSection.style.display = 'none';
     translationSection.style.display = 'none';
+
+    // Re-render history to clear active state
+    renderHistory(analysisHistory, historyList, {
+        onEntryClick: handleHistoryEntryClick,
+        activeId: currentHistoryId
+    });
+}
+
+function handleHistoryEntryClick(entry) {
+    // Restore state
+    currentTokens = entry.tokens;
+    currentText = entry.text;
+    currentHistoryId = entry.id;
+
+    // Update UI
+    inputText.value = entry.text;
+    renderAnalyzedText(currentTokens, analyzedTextContainer, entry.text);
+    tokenCount.textContent = `${currentTokens.length} tokens`;
+    outputSection.style.display = 'block';
+
+    // Restore translation if it exists
+    if (entry.translation) {
+        translationText.textContent = entry.translation;
+        translationMethodInfo.textContent = `Method: ${entry.translationMethod}`;
+        translationSection.style.display = 'block';
+    } else {
+        translationSection.style.display = 'none';
+    }
+
+    // Update active state in sidebar
+    renderHistory(analysisHistory, historyList, {
+        onEntryClick: handleHistoryEntryClick,
+        activeId: currentHistoryId
+    });
+}
+
+function handleClearHistory() {
+    if (analysisHistory.length === 0) return;
+
+    if (confirm('Clear all analysis history?')) {
+        analysisHistory = [];
+        currentHistoryId = null;
+
+        renderHistory(analysisHistory, historyList, {
+            onEntryClick: handleHistoryEntryClick,
+            activeId: currentHistoryId
+        });
+    }
 }
 
 async function handleTokenClick(token) {

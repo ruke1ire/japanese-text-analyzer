@@ -8,55 +8,71 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Japanese Text Analyzer</h1>
-            <p class="subtitle">Local text analysis with furigana, definitions, and kanji breakdown</p>
-        </header>
+    <div class="app-layout">
+        <aside class="history-sidebar" id="history-sidebar">
+            <div class="sidebar-header">
+                <h3>History</h3>
+                <button id="clear-history-btn" class="icon-btn">Clear</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
+        </aside>
 
-        <main>
-            <section class="input-section">
-                <textarea
-                    id="input-text"
-                    placeholder="Enter Japanese text here... (例：日本語のテキストを入力してください)"
-                    rows="6"
-                ></textarea>
-                <div class="button-group">
-                    <button id="analyze-btn" class="primary-btn">Analyze</button>
-                    <div class="translate-controls">
-                        <select id="translation-method" class="method-select">
-                            <option value="llamacpp">Offline (Local Model)</option>
-                            <option value="deepl">DeepL API</option>
-                            <option value="none">No Translation</option>
-                        </select>
-                        <button id="translate-btn" class="secondary-btn">Translate</button>
-                    </div>
-                    <button id="clear-btn" class="secondary-btn">Clear</button>
-                </div>
-            </section>
+        <div class="main-content">
+            <div class="container">
+                <header>
+                    <h1>Japanese Text Analyzer</h1>
+                    <p class="subtitle">Local text analysis with furigana, definitions, and kanji breakdown</p>
+                </header>
 
-            <section class="output-section" id="output-section" style="display: none;">
-                <div class="output-header">
-                    <h2>Analysis Result</h2>
-                    <span id="token-count" class="meta-info"></span>
-                </div>
-                <div id="analyzed-text" class="analyzed-text"></div>
-            </section>
+                <main>
+                    <section class="input-section">
+                        <textarea
+                            id="input-text"
+                            placeholder="Enter Japanese text here... (例：日本語のテキストを入力してください)"
+                            rows="6"
+                        ></textarea>
+                        <div class="button-group">
+                            <button id="analyze-btn" class="primary-btn">Analyze</button>
+                            <div class="translate-controls">
+                                <select id="translation-method" class="method-select">
+                                    <option value="llamacpp">Offline (Local Model)</option>
+                                    <option value="deepl">DeepL API</option>
+                                    <option value="none">No Translation</option>
+                                </select>
+                                <button id="translate-btn" class="secondary-btn">Translate</button>
+                            </div>
+                            <button id="clear-btn" class="secondary-btn">Clear</button>
+                        </div>
+                    </section>
 
-            <section class="translation-section" id="translation-section" style="display: none;">
-                <div class="translation-header">
-                    <h3>Translation</h3>
-                    <span id="translation-method-info" class="meta-info"></span>
-                </div>
-                <div id="translation-text" class="translation-text"></div>
-            </section>
-        </main>
+                    <section class="output-section" id="output-section" style="display: none;">
+                        <div class="output-header">
+                            <h2>Analysis Result</h2>
+                            <span id="token-count" class="meta-info"></span>
+                        </div>
+                        <div id="analyzed-text" class="analyzed-text"></div>
+                    </section>
 
-        <footer>
-            <p>Powered by MeCab, JMdict, and KANJIDIC2</p>
-            <p><a href="http://localhost:8000/docs" target="_blank">API Documentation</a></p>
-        </footer>
+                    <section class="translation-section" id="translation-section" style="display: none;">
+                        <div class="translation-header">
+                            <h3>Translation</h3>
+                            <span id="translation-method-info" class="meta-info"></span>
+                        </div>
+                        <div id="translation-text" class="translation-text"></div>
+                    </section>
+                </main>
+
+                <footer>
+                    <p>Powered by MeCab, JMdict, and KANJIDIC2</p>
+                    <p><a href="http://localhost:8000/docs" target="_blank">API Documentation</a></p>
+                </footer>
+            </div>
+        </div>
     </div>
+
+    <!-- Mobile toggle button -->
+    <button class="history-toggle-btn" id="history-toggle-btn">☰</button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <!-- Modal for word definitions -->
     <div id="definition-modal" class="modal">
