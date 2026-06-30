@@ -53,6 +53,28 @@ class KanjiResponse(BaseModel):
     frequency: Optional[int] = None
 
 
+class KanjiVocabItem(BaseModel):
+    word: str
+    reading: str
+    is_common: bool
+    meanings: List[str]
+
+
+class KanjiVocabularyResponse(BaseModel):
+    character: str
+    words: List[KanjiVocabItem]
+
+
+class ExampleSentenceItem(BaseModel):
+    japanese: str
+    english: str
+
+
+class KanjiExamplesResponse(BaseModel):
+    character: str
+    examples: List[ExampleSentenceItem]
+
+
 class TranslateRequest(BaseModel):
     text: str
     source: str = "ja"

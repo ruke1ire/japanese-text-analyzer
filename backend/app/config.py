@@ -18,6 +18,12 @@ DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
 # Dictionary file paths
 JMDICT_PATH = DICT_DIR / "JMdict_e.gz"
 KANJIDIC_PATH = DICT_DIR / "kanjidic2.xml"
+EXAMPLES_PATH = DICT_DIR / "examples.utf.gz"
+
+# Dictionary download URLs
+JMDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
+KANJIDIC_URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
+EXAMPLES_URL = "http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz"  # Tanaka/Tatoeba corpus (CC-BY)
 
 # API settings
 API_TITLE = "Japanese Text Analyzer API"

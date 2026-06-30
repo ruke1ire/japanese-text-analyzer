@@ -55,6 +55,30 @@ export class JapaneseAnalyzerAPI {
         return await response.json();
     }
 
+    async getKanjiVocabulary(character, limit = 20) {
+        const response = await fetch(
+            `${this.baseURL}/kanji/${encodeURIComponent(character)}/vocabulary?limit=${limit}`
+        );
+
+        if (!response.ok) {
+            throw new Error(`Kanji vocabulary lookup failed: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    async getKanjiExamples(character, limit = 6) {
+        const response = await fetch(
+            `${this.baseURL}/kanji/${encodeURIComponent(character)}/examples?limit=${limit}`
+        );
+
+        if (!response.ok) {
+            throw new Error(`Kanji examples lookup failed: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
     async translateText(text, source = 'ja', target = 'en', method = null) {
         const body = { text, source, target };
         if (method) {

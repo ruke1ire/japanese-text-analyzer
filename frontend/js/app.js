@@ -5,7 +5,7 @@
 import { JapaneseAnalyzerAPI } from './api.js';
 import { renderAnalyzedText, attachTokenClickHandlers } from './components/text-display.js';
 import { showDefinitionPopup, setupModalClose as setupDefModalClose } from './components/definition-popup.js';
-import { showKanjiDetails, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
+import { showKanjiDetails, renderKanjiVocabulary, renderKanjiExamples, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
 import { renderHistory, generatePreview, setupHistorySidebar } from './components/history-sidebar.js';
 
 // Initialize API client
@@ -278,12 +278,45 @@ async function handleKanjiClick(character) {
         // Look up kanji information
         const kanjiData = await api.getKanjiInfo(character);
 
-        // Show kanji details
-        showKanjiDetails(kanjiData, kanjiModal);
+        // Show kanji details (modal opens immediately on the core data)
+        showKanjiDetails(kanjiData, kanjiModal, handleVocabWordClick);
+
+        if (!kanjiData) {
+            return;
+        }
+
+        // Lazy-load the vocabulary and example-sentence sections so the modal
+        // never blocks on the heavier queries.
+        api.getKanjiVocabulary(character)
+            .then(vocab => renderKanjiVocabulary(vocab, kanjiModal))
+            .catch(error => {
+                console.error('Kanji vocabulary lookup error:', error);
+                renderKanjiVocabulary(null, kanjiModal);
+            });
+
+        api.getKanjiExamples(character)
+            .then(examples => renderKanjiExamples(examples, kanjiModal))
+            .catch(error => {
+                console.error('Kanji examples lookup error:', error);
+                renderKanjiExamples(null, kanjiModal);
+            });
 
     } catch (error) {
         console.error('Kanji lookup error:', error);
-        showKanjiDetails(null, kanjiModal);
+        showKanjiDetails(null, kanjiModal, handleVocabWordClick);
+    }
+}
+
+async function handleVocabWordClick(word) {
+    // Close the kanji modal and open the word's definition popup, reusing the
+    // existing flow so its kanji buttons stay live (word → kanji → word loop).
+    kanjiModal.style.display = 'none';
+    try {
+        const wordData = await api.getWordDefinition(word);
+        showDefinitionPopup(wordData, definitionModal, handleKanjiClick);
+    } catch (error) {
+        console.error('Word lookup error:', error);
+        showDefinitionPopup(null, definitionModal, handleKanjiClick);
     }
 }
 

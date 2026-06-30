@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import JMDICT_PATH, DATABASE_PATH
 from app.database import SessionLocal
-from app.models import Word, WordMeaning
+from app.models import Word, WordMeaning, Kanji, KanjiWordIndex
 
 
 def import_jmdict():
@@ -130,5 +130,58 @@ def import_jmdict():
         db.close()
 
 
+def build_kanji_word_index():
+    """Build the kanji -> word lookup index.
+
+    For every word, record one row per distinct kanji character it contains
+    (restricted to characters that exist in the kanji table, so the index only
+    covers kanji that actually have a detail page). Requires the words and kanji
+    tables to be populated.
+    """
+    db = SessionLocal()
+
+    try:
+        existing_count = db.query(KanjiWordIndex).count()
+        if existing_count > 0:
+            print(f"  Kanji-word index already has {existing_count} rows. Skipping build.")
+            return
+
+        kanji_set = {c for (c,) in db.query(Kanji.character).all()}
+        if not kanji_set:
+            print("  No kanji in database; skipping kanji-word index build.")
+            return
+
+        print(f"  Building kanji-word index over {db.query(Word).count()} words...")
+
+        batch = []
+        batch_size = 5000
+        total_rows = 0
+
+        for word_id, word_text in db.query(Word.id, Word.word).yield_per(2000):
+            for ch in set(word_text):
+                if ch in kanji_set:
+                    batch.append(KanjiWordIndex(kanji_char=ch, word_id=word_id))
+
+            if len(batch) >= batch_size:
+                db.bulk_save_objects(batch)
+                db.commit()
+                total_rows += len(batch)
+                batch = []
+
+        if batch:
+            db.bulk_save_objects(batch)
+            db.commit()
+            total_rows += len(batch)
+
+        print(f"✓ Built kanji-word index with {total_rows} rows")
+
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     import_jmdict()
+    build_kanji_word_index()

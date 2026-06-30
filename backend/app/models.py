@@ -67,3 +67,31 @@ class KanjiMeaning(Base):
     meaning_order = Column(Integer, default=1)
 
     kanji = relationship("Kanji", back_populates="meanings")
+
+
+class KanjiWordIndex(Base):
+    """Lookup index: which words contain a given kanji character."""
+    __tablename__ = "kanji_word_index"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kanji_char = Column(String, nullable=False, index=True)
+    word_id = Column(Integer, ForeignKey("words.id", ondelete="CASCADE"), nullable=False, index=True)
+
+
+class ExampleSentence(Base):
+    """Japanese-English example sentence pair (Tanaka/Tatoeba corpus)."""
+    __tablename__ = "example_sentences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    japanese = Column(String, nullable=False)
+    english = Column(String, nullable=False)
+    length = Column(Integer, nullable=False, index=True)  # char length of japanese, for ranking
+
+
+class KanjiExampleIndex(Base):
+    """Lookup index: which example sentences contain a given kanji character."""
+    __tablename__ = "kanji_example_index"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kanji_char = Column(String, nullable=False, index=True)
+    sentence_id = Column(Integer, ForeignKey("example_sentences.id", ondelete="CASCADE"), nullable=False, index=True)

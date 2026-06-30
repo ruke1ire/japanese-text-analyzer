@@ -2,7 +2,7 @@
  * Kanji details component - displays kanji information
  */
 
-export function showKanjiDetails(kanjiData, modal) {
+export function showKanjiDetails(kanjiData, modal, onWordClick) {
     const content = modal.querySelector('#kanji-content');
     content.innerHTML = '';
 
@@ -79,7 +79,130 @@ export function showKanjiDetails(kanjiData, modal) {
 
     content.appendChild(details);
 
+    // Vocabulary section (populated asynchronously by renderKanjiVocabulary)
+    const vocabSection = createKanjiSection('Words Using This Kanji', 'kanji-vocab-list');
+    vocabSection.classList.add('kanji-vocab-section');
+    content.appendChild(vocabSection);
+
+    // Example sentences section (populated asynchronously by renderKanjiExamples)
+    const examplesSection = createKanjiSection('Example Sentences', 'kanji-examples-list');
+    examplesSection.classList.add('kanji-examples-section');
+    content.appendChild(examplesSection);
+
+    // Stash the word-click handler so the async vocab render can wire it up
+    modal._onVocabWordClick = onWordClick;
+
     modal.style.display = 'block';
+}
+
+function createKanjiSection(title, listId) {
+    const section = document.createElement('div');
+    section.className = 'kanji-section-block';
+
+    const titleElem = document.createElement('h4');
+    titleElem.className = 'kanji-section-title';
+    titleElem.textContent = title;
+    section.appendChild(titleElem);
+
+    const list = document.createElement('div');
+    list.id = listId;
+    list.className = 'kanji-section-list';
+
+    const loading = document.createElement('div');
+    loading.className = 'kanji-section-loading';
+    loading.textContent = 'Loading…';
+    list.appendChild(loading);
+
+    section.appendChild(list);
+    return section;
+}
+
+export function renderKanjiVocabulary(vocabData, modal) {
+    const list = modal.querySelector('#kanji-vocab-list');
+    if (!list) return;  // kanji-not-found case: section was never rendered
+    list.innerHTML = '';
+
+    const words = vocabData && vocabData.words ? vocabData.words : [];
+    if (words.length === 0) {
+        list.innerHTML = '<div class="kanji-section-empty">No vocabulary found.</div>';
+        return;
+    }
+
+    const onWordClick = modal._onVocabWordClick;
+
+    words.forEach(item => {
+        const row = document.createElement('button');
+        row.className = 'kanji-vocab-item';
+        row.type = 'button';
+
+        const headline = document.createElement('div');
+        headline.className = 'kanji-vocab-headline';
+
+        const word = document.createElement('span');
+        word.className = 'kanji-vocab-word';
+        word.textContent = item.word;
+        headline.appendChild(word);
+
+        if (item.reading && item.reading !== item.word) {
+            const reading = document.createElement('span');
+            reading.className = 'kanji-vocab-reading';
+            reading.textContent = item.reading;
+            headline.appendChild(reading);
+        }
+
+        if (item.is_common) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-common';
+            badge.textContent = 'Common';
+            headline.appendChild(badge);
+        }
+
+        row.appendChild(headline);
+
+        if (item.meanings && item.meanings.length > 0) {
+            const meaning = document.createElement('div');
+            meaning.className = 'kanji-vocab-meaning';
+            meaning.textContent = item.meanings.join('; ');
+            row.appendChild(meaning);
+        }
+
+        if (typeof onWordClick === 'function') {
+            row.onclick = () => onWordClick(item.word);
+        } else {
+            row.disabled = true;
+        }
+
+        list.appendChild(row);
+    });
+}
+
+export function renderKanjiExamples(examplesData, modal) {
+    const list = modal.querySelector('#kanji-examples-list');
+    if (!list) return;  // kanji-not-found case: section was never rendered
+    list.innerHTML = '';
+
+    const examples = examplesData && examplesData.examples ? examplesData.examples : [];
+    if (examples.length === 0) {
+        list.innerHTML = '<div class="kanji-section-empty">No example sentences found.</div>';
+        return;
+    }
+
+    examples.forEach(ex => {
+        const block = document.createElement('div');
+        block.className = 'kanji-example';
+
+        const jp = document.createElement('div');
+        jp.className = 'kanji-example-jp';
+        jp.textContent = ex.japanese;
+        block.appendChild(jp);
+
+        const en = document.createElement('div');
+        en.className = 'kanji-example-en';
+        en.textContent = ex.english;
+        block.appendChild(en);
+
+        list.appendChild(block);
+    });
 }
 
 function createDetailGroup(title, items) {

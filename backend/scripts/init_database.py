@@ -15,10 +15,14 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import DB_DIR, DICT_DIR, JMDICT_PATH, KANJIDIC_PATH
+from app.config import (
+    DB_DIR, DICT_DIR, JMDICT_PATH, KANJIDIC_PATH, EXAMPLES_PATH,
+    JMDICT_URL, KANJIDIC_URL, EXAMPLES_URL,
+)
 from app.database import init_db, engine
-from import_jmdict import import_jmdict
+from import_jmdict import import_jmdict, build_kanji_word_index
 from import_kanjidic import import_kanjidic
+from import_examples import import_examples
 import urllib.request
 
 
@@ -55,11 +59,9 @@ def main():
     # Download dictionary files
     print("\n2. Downloading dictionary files...")
 
-    JMDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
-    KANJIDIC_URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
-
     download_file(JMDICT_URL, JMDICT_PATH, "JMdict")
     download_file(KANJIDIC_URL, KANJIDIC_PATH.with_suffix('.xml.gz'), "KANJIDIC2")
+    download_file(EXAMPLES_URL, EXAMPLES_PATH, "Tanaka/Tatoeba examples")
 
     # Decompress KANJIDIC if needed
     if KANJIDIC_PATH.with_suffix('.xml.gz').exists() and not KANJIDIC_PATH.exists():
@@ -82,6 +84,14 @@ def main():
 
     print("\n5. Importing KANJIDIC...")
     import_kanjidic()
+
+    # The kanji-word index and example import both rely on the kanji table,
+    # so they run after KANJIDIC has been imported.
+    print("\n6. Building kanji-word index...")
+    build_kanji_word_index()
+
+    print("\n7. Importing example sentences...")
+    import_examples()
 
     print("\n" + "=" * 60)
     print("Database initialization complete!")

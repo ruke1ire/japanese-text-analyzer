@@ -4,6 +4,7 @@ from app.database import get_db
 from app.schemas import (
     AnalyzeRequest, AnalyzeResponse,
     WordResponse, KanjiResponse,
+    KanjiVocabularyResponse, KanjiExamplesResponse,
     TranslateRequest, TranslateResponse,
     HealthResponse
 )
@@ -54,6 +55,34 @@ async def get_kanji_info(character: str, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail=f"Kanji not found: {character}")
     return result
+
+
+@router.get("/kanji/{character}/vocabulary", response_model=KanjiVocabularyResponse)
+async def get_kanji_vocabulary(character: str, limit: int = 20, db: Session = Depends(get_db)):
+    """
+    Get vocabulary words that contain this kanji
+
+    - **character**: Single kanji character
+    - **limit**: Max number of words to return (default 20)
+    """
+    if len(character) != 1:
+        raise HTTPException(status_code=400, detail="Please provide a single kanji character")
+
+    return KanjiService.get_vocabulary(db, character, limit=limit)
+
+
+@router.get("/kanji/{character}/examples", response_model=KanjiExamplesResponse)
+async def get_kanji_examples(character: str, limit: int = 6, db: Session = Depends(get_db)):
+    """
+    Get example sentences that contain this kanji
+
+    - **character**: Single kanji character
+    - **limit**: Max number of sentences to return (default 6)
+    """
+    if len(character) != 1:
+        raise HTTPException(status_code=400, detail="Please provide a single kanji character")
+
+    return KanjiService.get_examples(db, character, limit=limit)
 
 
 @router.post("/translate", response_model=TranslateResponse)

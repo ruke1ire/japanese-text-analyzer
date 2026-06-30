@@ -403,6 +403,90 @@ rt {
     font-size: 1.1rem;
 }
 
+/* Kanji modal: vocabulary & example-sentence sections */
+.kanji-section-block {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.kanji-section-title {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.kanji-section-loading,
+.kanji-section-empty {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.kanji-vocab-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    font-family: inherit;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.kanji-vocab-item:hover:not(:disabled) {
+    background: var(--surface-color);
+    border-color: var(--primary-color);
+}
+
+.kanji-vocab-item:disabled {
+    cursor: default;
+}
+
+.kanji-vocab-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.kanji-vocab-word {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.kanji-vocab-reading {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.kanji-vocab-meaning {
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.kanji-example {
+    background: var(--bg-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.kanji-example-jp {
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.kanji-example-en {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
 footer {
     text-align: center;
     margin-top: 3rem;
