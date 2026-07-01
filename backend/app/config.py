@@ -19,11 +19,15 @@ DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
 JMDICT_PATH = DICT_DIR / "JMdict_e.gz"
 KANJIDIC_PATH = DICT_DIR / "kanjidic2.xml"
 EXAMPLES_PATH = DICT_DIR / "examples.utf.gz"
+KRADFILE_PATH = DICT_DIR / "kradfile-u.gz"
 
 # Dictionary download URLs
 JMDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
 KANJIDIC_URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
 EXAMPLES_URL = "http://ftp.edrdg.org/pub/Nihongo/examples.utf.gz"  # Tanaka/Tatoeba corpus (CC-BY)
+# KRADFILE-u: kanji -> component radicals, UTF-8 (CC BY-SA). Note: ftp.edrdg.org's
+# HTTPS cert only covers www.edrdg.org, so this must be fetched over http://.
+KRADFILE_URL = "http://ftp.edrdg.org/pub/Nihongo/kradfile-u.gz"
 
 # API settings
 API_TITLE = "Japanese Text Analyzer API"

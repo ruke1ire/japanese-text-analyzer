@@ -137,11 +137,13 @@ export function setupModalClose(modal) {
         modal.style.display = 'none';
     };
 
-    window.onclick = (event) => {
+    // Additive listener (not window.onclick =) so multiple modals can coexist
+    // without overwriting each other's backdrop-close handler.
+    window.addEventListener('click', (event) => {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
-    };
+    });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && modal.style.display === 'block') {

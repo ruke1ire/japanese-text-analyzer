@@ -2,7 +2,7 @@
  * Kanji details component - displays kanji information
  */
 
-export function showKanjiDetails(kanjiData, modal, onWordClick) {
+export function showKanjiDetails(kanjiData, modal, onWordClick, onRadicalClick) {
     const content = modal.querySelector('#kanji-content');
     content.innerHTML = '';
 
@@ -65,10 +65,15 @@ export function showKanjiDetails(kanjiData, modal, onWordClick) {
         details.appendChild(jlptGroup);
     }
 
-    // Radical
-    if (kanjiData.radical) {
-        const radicalGroup = createInfoGroup('Radical', kanjiData.radical);
-        details.appendChild(radicalGroup);
+    // Radical (classical / indexing radical) — show glyph + meaning when known,
+    // otherwise fall back to the bare KANJIDIC radical number.
+    if (kanjiData.radical_character) {
+        const label = kanjiData.radical_meaning
+            ? `${kanjiData.radical_character} — ${kanjiData.radical_meaning}`
+            : kanjiData.radical_character;
+        details.appendChild(createInfoGroup('Radical', label));
+    } else if (kanjiData.radical) {
+        details.appendChild(createInfoGroup('Radical', kanjiData.radical));
     }
 
     // Frequency
@@ -78,6 +83,11 @@ export function showKanjiDetails(kanjiData, modal, onWordClick) {
     }
 
     content.appendChild(details);
+
+    // Component radicals section (populated asynchronously by renderKanjiRadicals)
+    const radicalsSection = createKanjiSection('Component Radicals', 'kanji-radicals-list');
+    radicalsSection.classList.add('kanji-radicals-section');
+    content.appendChild(radicalsSection);
 
     // Vocabulary section (populated asynchronously by renderKanjiVocabulary)
     const vocabSection = createKanjiSection('Words Using This Kanji', 'kanji-vocab-list');
@@ -89,8 +99,9 @@ export function showKanjiDetails(kanjiData, modal, onWordClick) {
     examplesSection.classList.add('kanji-examples-section');
     content.appendChild(examplesSection);
 
-    // Stash the word-click handler so the async vocab render can wire it up
+    // Stash click handlers so the async renders can wire them up
     modal._onVocabWordClick = onWordClick;
+    modal._onRadicalClick = onRadicalClick;
 
     modal.style.display = 'block';
 }
@@ -205,6 +216,51 @@ export function renderKanjiExamples(examplesData, modal) {
     });
 }
 
+export function renderKanjiRadicals(radicalsData, modal) {
+    const list = modal.querySelector('#kanji-radicals-list');
+    if (!list) return;  // kanji-not-found case: section was never rendered
+    list.innerHTML = '';
+
+    const radicals = radicalsData && radicalsData.radicals ? radicalsData.radicals : [];
+    if (radicals.length === 0) {
+        list.innerHTML = '<div class="kanji-section-empty">No radical data found.</div>';
+        return;
+    }
+
+    const onRadicalClick = modal._onRadicalClick;
+
+    const chips = document.createElement('div');
+    chips.className = 'kanji-radical-chips';
+
+    radicals.forEach(item => {
+        const chip = document.createElement('button');
+        chip.className = 'kanji-radical-item';
+        chip.type = 'button';
+
+        const glyph = document.createElement('span');
+        glyph.className = 'kanji-radical-glyph';
+        glyph.textContent = item.character;
+        chip.appendChild(glyph);
+
+        if (item.meaning) {
+            const meaning = document.createElement('span');
+            meaning.className = 'kanji-radical-meaning';
+            meaning.textContent = item.meaning;
+            chip.appendChild(meaning);
+        }
+
+        if (typeof onRadicalClick === 'function') {
+            chip.onclick = () => onRadicalClick(item.character);
+        } else {
+            chip.disabled = true;
+        }
+
+        chips.appendChild(chip);
+    });
+
+    list.appendChild(chips);
+}
+
 function createDetailGroup(title, items) {
     const group = document.createElement('div');
     group.className = 'detail-group';
@@ -249,11 +305,13 @@ export function setupModalClose(modal) {
         modal.style.display = 'none';
     };
 
-    window.onclick = (event) => {
+    // Additive listener (not window.onclick =) so multiple modals can coexist
+    // without overwriting each other's backdrop-close handler.
+    window.addEventListener('click', (event) => {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
-    };
+    });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && modal.style.display === 'block') {

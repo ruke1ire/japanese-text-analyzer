@@ -487,6 +487,53 @@ rt {
     color: var(--text-secondary);
 }
 
+/* Kanji modal: component-radical chips */
+.kanji-radical-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.kanji-radical-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    cursor: pointer;
+    font-family: inherit;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.kanji-radical-item:hover:not(:disabled) {
+    background: var(--surface-color);
+    border-color: var(--primary-color);
+}
+
+.kanji-radical-item:disabled {
+    cursor: default;
+}
+
+.kanji-radical-glyph {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.kanji-radical-meaning {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Radical detail modal reuses the kanji modal's content styles */
+#radical-content {
+    padding: 2rem;
+    overflow-y: auto;
+    max-height: 80vh;
+}
+
 footer {
     text-align: center;
     margin-top: 3rem;
@@ -716,7 +763,8 @@ footer a:hover {
     }
 
     #definition-content,
-    #kanji-content {
+    #kanji-content,
+    #radical-content {
         padding: 1.5rem;
         max-height: 90vh;
     }

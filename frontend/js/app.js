@@ -5,7 +5,8 @@
 import { JapaneseAnalyzerAPI } from './api.js';
 import { renderAnalyzedText, attachTokenClickHandlers } from './components/text-display.js';
 import { showDefinitionPopup, setupModalClose as setupDefModalClose } from './components/definition-popup.js';
-import { showKanjiDetails, renderKanjiVocabulary, renderKanjiExamples, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
+import { showKanjiDetails, renderKanjiVocabulary, renderKanjiExamples, renderKanjiRadicals, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
+import { showRadicalDetails, setupModalClose as setupRadicalModalClose } from './components/radical-details.js';
 import { renderHistory, generatePreview, setupHistorySidebar } from './components/history-sidebar.js';
 
 // Initialize API client
@@ -32,6 +33,7 @@ const translationText = document.getElementById('translation-text');
 const translationMethodInfo = document.getElementById('translation-method-info');
 const definitionModal = document.getElementById('definition-modal');
 const kanjiModal = document.getElementById('kanji-modal');
+const radicalModal = document.getElementById('radical-modal');
 const historySidebar = document.getElementById('history-sidebar');
 const historyList = document.getElementById('history-list');
 const clearHistoryBtn = document.getElementById('clear-history-btn');
@@ -58,6 +60,7 @@ function init() {
     // Setup modals
     setupDefModalClose(definitionModal);
     setupKanjiModalClose(kanjiModal);
+    setupRadicalModalClose(radicalModal);
 
     // Setup token click handlers
     attachTokenClickHandlers(analyzedTextContainer, handleTokenClick);
@@ -272,21 +275,29 @@ async function handleTokenClick(token) {
 
 async function handleKanjiClick(character) {
     try {
-        // Close definition modal
+        // Close the definition and radical modals so the loop closes cleanly
         definitionModal.style.display = 'none';
+        radicalModal.style.display = 'none';
 
         // Look up kanji information
         const kanjiData = await api.getKanjiInfo(character);
 
         // Show kanji details (modal opens immediately on the core data)
-        showKanjiDetails(kanjiData, kanjiModal, handleVocabWordClick);
+        showKanjiDetails(kanjiData, kanjiModal, handleVocabWordClick, handleRadicalClick);
 
         if (!kanjiData) {
             return;
         }
 
-        // Lazy-load the vocabulary and example-sentence sections so the modal
-        // never blocks on the heavier queries.
+        // Lazy-load the component-radical, vocabulary and example-sentence
+        // sections so the modal never blocks on the heavier queries.
+        api.getKanjiRadicals(character)
+            .then(radicals => renderKanjiRadicals(radicals, kanjiModal))
+            .catch(error => {
+                console.error('Kanji radicals lookup error:', error);
+                renderKanjiRadicals(null, kanjiModal);
+            });
+
         api.getKanjiVocabulary(character)
             .then(vocab => renderKanjiVocabulary(vocab, kanjiModal))
             .catch(error => {
@@ -303,7 +314,20 @@ async function handleKanjiClick(character) {
 
     } catch (error) {
         console.error('Kanji lookup error:', error);
-        showKanjiDetails(null, kanjiModal, handleVocabWordClick);
+        showKanjiDetails(null, kanjiModal, handleVocabWordClick, handleRadicalClick);
+    }
+}
+
+async function handleRadicalClick(radicalChar) {
+    // Close the kanji modal and open the radical's detail view. The "kanji using
+    // this radical" buttons reuse handleKanjiClick, so radical -> kanji loops back.
+    kanjiModal.style.display = 'none';
+    try {
+        const radicalData = await api.getRadicalDetail(radicalChar);
+        showRadicalDetails(radicalData, radicalModal, handleKanjiClick);
+    } catch (error) {
+        console.error('Radical lookup error:', error);
+        showRadicalDetails(null, radicalModal, handleKanjiClick);
     }
 }
 

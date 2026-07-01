@@ -79,6 +79,33 @@ export class JapaneseAnalyzerAPI {
         return await response.json();
     }
 
+    async getKanjiRadicals(character) {
+        const response = await fetch(
+            `${this.baseURL}/kanji/${encodeURIComponent(character)}/radicals`
+        );
+
+        if (!response.ok) {
+            throw new Error(`Kanji radicals lookup failed: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    async getRadicalDetail(character) {
+        const response = await fetch(
+            `${this.baseURL}/radical/${encodeURIComponent(character)}`
+        );
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                return null;
+            }
+            throw new Error(`Radical lookup failed: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
     async translateText(text, source = 'ja', target = 'en', method = null) {
         const body = { text, source, target };
         if (method) {

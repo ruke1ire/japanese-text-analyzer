@@ -5,6 +5,7 @@ from app.schemas import (
     AnalyzeRequest, AnalyzeResponse,
     WordResponse, KanjiResponse,
     KanjiVocabularyResponse, KanjiExamplesResponse,
+    KanjiRadicalsResponse, RadicalDetailResponse,
     TranslateRequest, TranslateResponse,
     HealthResponse
 )
@@ -83,6 +84,36 @@ async def get_kanji_examples(character: str, limit: int = 6, db: Session = Depen
         raise HTTPException(status_code=400, detail="Please provide a single kanji character")
 
     return KanjiService.get_examples(db, character, limit=limit)
+
+
+@router.get("/kanji/{character}/radicals", response_model=KanjiRadicalsResponse)
+async def get_kanji_radicals(character: str, db: Session = Depends(get_db)):
+    """
+    Get the component radicals that make up this kanji
+
+    - **character**: Single kanji character
+    """
+    if len(character) != 1:
+        raise HTTPException(status_code=400, detail="Please provide a single kanji character")
+
+    return KanjiService.get_radicals(db, character)
+
+
+@router.get("/radical/{character}", response_model=RadicalDetailResponse)
+async def get_radical_detail(character: str, limit: int = 30, db: Session = Depends(get_db)):
+    """
+    Get a radical's detail and the other kanji that use it
+
+    - **character**: Single radical glyph
+    - **limit**: Max number of related kanji to return (default 30)
+    """
+    if len(character) != 1:
+        raise HTTPException(status_code=400, detail="Please provide a single radical character")
+
+    result = KanjiService.get_radical_detail(db, character, limit=limit)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Radical not found: {character}")
+    return result
 
 
 @router.post("/translate", response_model=TranslateResponse)

@@ -16,13 +16,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import (
-    DB_DIR, DICT_DIR, JMDICT_PATH, KANJIDIC_PATH, EXAMPLES_PATH,
-    JMDICT_URL, KANJIDIC_URL, EXAMPLES_URL,
+    DB_DIR, DICT_DIR, JMDICT_PATH, KANJIDIC_PATH, EXAMPLES_PATH, KRADFILE_PATH,
+    JMDICT_URL, KANJIDIC_URL, EXAMPLES_URL, KRADFILE_URL,
 )
 from app.database import init_db, engine
 from import_jmdict import import_jmdict, build_kanji_word_index
 from import_kanjidic import import_kanjidic
 from import_examples import import_examples
+from import_radicals import import_radicals
 import urllib.request
 
 
@@ -62,6 +63,7 @@ def main():
     download_file(JMDICT_URL, JMDICT_PATH, "JMdict")
     download_file(KANJIDIC_URL, KANJIDIC_PATH.with_suffix('.xml.gz'), "KANJIDIC2")
     download_file(EXAMPLES_URL, EXAMPLES_PATH, "Tanaka/Tatoeba examples")
+    download_file(KRADFILE_URL, KRADFILE_PATH, "KRADFILE (radical decomposition)")
 
     # Decompress KANJIDIC if needed
     if KANJIDIC_PATH.with_suffix('.xml.gz').exists() and not KANJIDIC_PATH.exists():
@@ -92,6 +94,11 @@ def main():
 
     print("\n7. Importing example sentences...")
     import_examples()
+
+    # Radicals also depend on the kanji table (the index is restricted to kanji
+    # that have a detail page), so this runs after KANJIDIC too.
+    print("\n8. Importing radicals (KRADFILE)...")
+    import_radicals()
 
     print("\n" + "=" * 60)
     print("Database initialization complete!")

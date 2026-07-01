@@ -4,11 +4,14 @@ from typing import Optional
 from app.models import (
     Kanji, KanjiReading, KanjiMeaning,
     Word, KanjiWordIndex, ExampleSentence, KanjiExampleIndex,
+    Radical, KanjiRadicalIndex,
 )
 from app.schemas import (
     KanjiResponse, KanjiReadings,
     KanjiVocabItem, KanjiVocabularyResponse,
     ExampleSentenceItem, KanjiExamplesResponse,
+    RadicalItem, KanjiRadicalsResponse,
+    RadicalKanjiItem, RadicalDetailResponse,
 )
 
 
@@ -45,6 +48,21 @@ class KanjiService:
         # Extract meanings
         meanings = [m.meaning for m in kanji_entry.meanings]
 
+        # Upgrade the bare classical-radical number to its glyph + meaning when
+        # we have it in the radical table (KANJIDIC2 stores only the number).
+        radical_character = None
+        radical_meaning = None
+        if kanji_entry.radical and kanji_entry.radical.isdigit():
+            rad = (
+                db.query(Radical)
+                .filter(Radical.kangxi_number == int(kanji_entry.radical))
+                .order_by(Radical.id.asc())  # canonical glyph is inserted first
+                .first()
+            )
+            if rad:
+                radical_character = rad.character
+                radical_meaning = rad.meaning
+
         return KanjiResponse(
             character=kanji_entry.character,
             meanings=meanings,
@@ -53,6 +71,8 @@ class KanjiService:
             grade=kanji_entry.grade,
             jlpt_level=kanji_entry.jlpt_level,
             radical=kanji_entry.radical,
+            radical_character=radical_character,
+            radical_meaning=radical_meaning,
             frequency=kanji_entry.frequency
         )
 
@@ -119,6 +139,80 @@ class KanjiService:
         ]
 
         return KanjiExamplesResponse(character=character, examples=examples)
+
+    @staticmethod
+    def get_radicals(db: Session, character: str) -> KanjiRadicalsResponse:
+        """
+        Get the component radicals that make up the given kanji.
+
+        Ordered simplest-first (fewest strokes) so the basic building blocks
+        come before the more complex ones.
+        """
+        rows = (
+            db.query(Radical)
+            .join(KanjiRadicalIndex, KanjiRadicalIndex.radical_char == Radical.character)
+            .filter(KanjiRadicalIndex.kanji_char == character)
+            .order_by(
+                Radical.strokes.is_(None),  # known stroke counts first
+                Radical.strokes.asc(),
+                Radical.character.asc(),
+            )
+            .all()
+        )
+
+        radicals = [
+            RadicalItem(
+                character=r.character,
+                meaning=r.meaning,
+                reading=r.reading,
+                strokes=r.strokes,
+            )
+            for r in rows
+        ]
+
+        return KanjiRadicalsResponse(character=character, radicals=radicals)
+
+    @staticmethod
+    def get_radical_detail(db: Session, character: str, limit: int = 30) -> Optional[RadicalDetailResponse]:
+        """
+        Get a radical's own detail: its name/meaning/strokes plus the other
+        kanji that are built from it (most-frequent first), for drill-in.
+        Returns None if the radical glyph is unknown.
+        """
+        radical = db.query(Radical).filter(Radical.character == character).first()
+        if not radical:
+            return None
+
+        kanji_rows = (
+            db.query(Kanji)
+            .join(KanjiRadicalIndex, KanjiRadicalIndex.kanji_char == Kanji.character)
+            .filter(KanjiRadicalIndex.radical_char == character)
+            .order_by(
+                Kanji.frequency.is_(None),  # frequency-ranked kanji first
+                Kanji.frequency.asc(),
+                Kanji.stroke_count.asc(),
+                Kanji.character.asc(),
+            )
+            .limit(limit)
+            .all()
+        )
+
+        kanji = [
+            RadicalKanjiItem(
+                character=k.character,
+                meanings=[m.meaning for m in k.meanings][:3],
+            )
+            for k in kanji_rows
+        ]
+
+        return RadicalDetailResponse(
+            character=radical.character,
+            meaning=radical.meaning,
+            reading=radical.reading,
+            strokes=radical.strokes,
+            kangxi_number=radical.kangxi_number,
+            kanji=kanji,
+        )
 
     @staticmethod
     def get_kanji_count(db: Session) -> int:

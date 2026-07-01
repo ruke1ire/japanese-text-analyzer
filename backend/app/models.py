@@ -95,3 +95,26 @@ class KanjiExampleIndex(Base):
     id = Column(Integer, primary_key=True, index=True)
     kanji_char = Column(String, nullable=False, index=True)
     sentence_id = Column(Integer, ForeignKey("example_sentences.id", ondelete="CASCADE"), nullable=False, index=True)
+
+
+class Radical(Base):
+    """A component radical glyph plus its name/meaning metadata (from KRADFILE
+    + the static radical name table)."""
+    __tablename__ = "radicals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    character = Column(String, unique=True, nullable=False, index=True)  # the component glyph
+    meaning = Column(String, nullable=True)        # English name/meaning (None if unknown)
+    reading = Column(String, nullable=True)        # Japanese bushu name
+    strokes = Column(Integer, nullable=True)
+    kangxi_number = Column(Integer, nullable=True, index=True)  # 1–214 for classical radicals
+
+
+class KanjiRadicalIndex(Base):
+    """Lookup index: which component radicals make up a given kanji character
+    (and, read in reverse, which kanji use a given radical)."""
+    __tablename__ = "kanji_radical_index"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kanji_char = Column(String, nullable=False, index=True)
+    radical_char = Column(String, nullable=False, index=True)

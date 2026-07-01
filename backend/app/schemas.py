@@ -49,7 +49,9 @@ class KanjiResponse(BaseModel):
     stroke_count: Optional[int] = None
     grade: Optional[int] = None
     jlpt_level: Optional[int] = None
-    radical: Optional[str] = None
+    radical: Optional[str] = None  # classical radical number (KANJIDIC2)
+    radical_character: Optional[str] = None  # glyph of the classical radical
+    radical_meaning: Optional[str] = None  # English meaning of the classical radical
     frequency: Optional[int] = None
 
 
@@ -73,6 +75,32 @@ class ExampleSentenceItem(BaseModel):
 class KanjiExamplesResponse(BaseModel):
     character: str
     examples: List[ExampleSentenceItem]
+
+
+class RadicalItem(BaseModel):
+    character: str
+    meaning: Optional[str] = None
+    reading: Optional[str] = None
+    strokes: Optional[int] = None
+
+
+class KanjiRadicalsResponse(BaseModel):
+    character: str
+    radicals: List[RadicalItem]
+
+
+class RadicalKanjiItem(BaseModel):
+    character: str
+    meanings: List[str]
+
+
+class RadicalDetailResponse(BaseModel):
+    character: str
+    meaning: Optional[str] = None
+    reading: Optional[str] = None
+    strokes: Optional[int] = None
+    kangxi_number: Optional[int] = None
+    kanji: List[RadicalKanjiItem]
 
 
 class TranslateRequest(BaseModel):
