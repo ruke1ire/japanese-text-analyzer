@@ -259,89 +259,123 @@ function handleClearHistory() {
     }
 }
 
-async function handleTokenClick(token) {
-    try {
-        // Look up word definition using base form
-        const wordData = await api.getWordDefinition(token.baseForm);
+// --- Drill-in navigation with a back stack -------------------------------
+// A single history stack spanning all three detail views (word definition,
+// kanji, radical). Each drill-in pushes the view you came from, so the "← Back"
+// button on every modal walks back through the whole chain:
+//   token → definition → kanji → radical → kanji → ...
+let navStack = [];       // previous views: { kind: 'definition'|'kanji'|'radical', value }
+let currentView = null;  // the view currently shown
 
-        // Show definition popup
-        showDefinitionPopup(wordData, definitionModal, handleKanjiClick);
-
-    } catch (error) {
-        console.error('Word lookup error:', error);
-        showDefinitionPopup(null, definitionModal, handleKanjiClick);
-    }
-}
-
-async function handleKanjiClick(character) {
-    try {
-        // Close the definition and radical modals so the loop closes cleanly
-        definitionModal.style.display = 'none';
-        radicalModal.style.display = 'none';
-
-        // Look up kanji information
-        const kanjiData = await api.getKanjiInfo(character);
-
-        // Show kanji details (modal opens immediately on the core data)
-        showKanjiDetails(kanjiData, kanjiModal, handleVocabWordClick, handleRadicalClick);
-
-        if (!kanjiData) {
-            return;
-        }
-
-        // Lazy-load the component-radical, vocabulary and example-sentence
-        // sections so the modal never blocks on the heavier queries.
-        api.getKanjiRadicals(character)
-            .then(radicals => renderKanjiRadicals(radicals, kanjiModal))
-            .catch(error => {
-                console.error('Kanji radicals lookup error:', error);
-                renderKanjiRadicals(null, kanjiModal);
-            });
-
-        api.getKanjiVocabulary(character)
-            .then(vocab => renderKanjiVocabulary(vocab, kanjiModal))
-            .catch(error => {
-                console.error('Kanji vocabulary lookup error:', error);
-                renderKanjiVocabulary(null, kanjiModal);
-            });
-
-        api.getKanjiExamples(character)
-            .then(examples => renderKanjiExamples(examples, kanjiModal))
-            .catch(error => {
-                console.error('Kanji examples lookup error:', error);
-                renderKanjiExamples(null, kanjiModal);
-            });
-
-    } catch (error) {
-        console.error('Kanji lookup error:', error);
-        showKanjiDetails(null, kanjiModal, handleVocabWordClick, handleRadicalClick);
-    }
-}
-
-async function handleRadicalClick(radicalChar) {
-    // Close the kanji modal and open the radical's detail view. The "kanji using
-    // this radical" buttons reuse handleKanjiClick, so radical -> kanji loops back.
+function hideAllDetailModals() {
+    definitionModal.style.display = 'none';
     kanjiModal.style.display = 'none';
-    try {
-        const radicalData = await api.getRadicalDetail(radicalChar);
-        showRadicalDetails(radicalData, radicalModal, handleKanjiClick);
-    } catch (error) {
-        console.error('Radical lookup error:', error);
-        showRadicalDetails(null, radicalModal, handleKanjiClick);
+    radicalModal.style.display = 'none';
+}
+
+function updateBackButton(modal) {
+    const btn = modal.querySelector('.modal-back');
+    if (!btn) return;
+    if (navStack.length > 0) {
+        btn.style.display = '';
+        btn.onclick = goBack;
+    } else {
+        btn.style.display = 'none';
+        btn.onclick = null;
     }
 }
 
-async function handleVocabWordClick(word) {
-    // Close the kanji modal and open the word's definition popup, reusing the
-    // existing flow so its kanji buttons stay live (word → kanji → word loop).
-    kanjiModal.style.display = 'none';
+// Core show functions — render a view without touching the back stack.
+async function showDefinitionView(word) {
+    hideAllDetailModals();
     try {
         const wordData = await api.getWordDefinition(word);
-        showDefinitionPopup(wordData, definitionModal, handleKanjiClick);
+        showDefinitionPopup(wordData, definitionModal, navToKanji);
     } catch (error) {
         console.error('Word lookup error:', error);
-        showDefinitionPopup(null, definitionModal, handleKanjiClick);
+        showDefinitionPopup(null, definitionModal, navToKanji);
     }
+    updateBackButton(definitionModal);
+    currentView = { kind: 'definition', value: word };
+}
+
+async function showKanjiView(character) {
+    hideAllDetailModals();
+    let kanjiData = null;
+    try {
+        kanjiData = await api.getKanjiInfo(character);
+    } catch (error) {
+        console.error('Kanji lookup error:', error);
+    }
+
+    // Modal opens immediately on the core data; the click handlers drill further.
+    showKanjiDetails(kanjiData, kanjiModal, navToDefinition, navToRadical);
+    updateBackButton(kanjiModal);
+    currentView = { kind: 'kanji', value: character };
+
+    if (!kanjiData) {
+        return;
+    }
+
+    // Lazy-load the component-radical, vocabulary and example-sentence sections
+    // so the modal never blocks on the heavier queries.
+    api.getKanjiRadicals(character)
+        .then(radicals => renderKanjiRadicals(radicals, kanjiModal))
+        .catch(error => {
+            console.error('Kanji radicals lookup error:', error);
+            renderKanjiRadicals(null, kanjiModal);
+        });
+
+    api.getKanjiVocabulary(character)
+        .then(vocab => renderKanjiVocabulary(vocab, kanjiModal))
+        .catch(error => {
+            console.error('Kanji vocabulary lookup error:', error);
+            renderKanjiVocabulary(null, kanjiModal);
+        });
+
+    api.getKanjiExamples(character)
+        .then(examples => renderKanjiExamples(examples, kanjiModal))
+        .catch(error => {
+            console.error('Kanji examples lookup error:', error);
+            renderKanjiExamples(null, kanjiModal);
+        });
+}
+
+async function showRadicalView(radicalChar) {
+    hideAllDetailModals();
+    try {
+        const radicalData = await api.getRadicalDetail(radicalChar);
+        showRadicalDetails(radicalData, radicalModal, navToKanji);
+    } catch (error) {
+        console.error('Radical lookup error:', error);
+        showRadicalDetails(null, radicalModal, navToKanji);
+    }
+    updateBackButton(radicalModal);
+    currentView = { kind: 'radical', value: radicalChar };
+}
+
+// Navigation wrappers — remember where we came from, then drill in.
+function pushCurrent() {
+    if (currentView) navStack.push(currentView);
+}
+function navToDefinition(word) { pushCurrent(); return showDefinitionView(word); }
+function navToKanji(character) { pushCurrent(); return showKanjiView(character); }
+function navToRadical(radicalChar) { pushCurrent(); return showRadicalView(radicalChar); }
+
+function goBack() {
+    const prev = navStack.pop();
+    if (!prev) return;
+    // Re-render via the core show functions, which do NOT push onto the stack.
+    if (prev.kind === 'definition') showDefinitionView(prev.value);
+    else if (prev.kind === 'kanji') showKanjiView(prev.value);
+    else if (prev.kind === 'radical') showRadicalView(prev.value);
+}
+
+// Entry point from the analyzed text: starts a fresh navigation (empty stack).
+async function handleTokenClick(token) {
+    navStack = [];
+    currentView = null;
+    await showDefinitionView(token.baseForm);
 }
 
 // Start app
