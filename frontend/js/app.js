@@ -8,6 +8,7 @@ import { showDefinitionPopup, setupModalClose as setupDefModalClose } from './co
 import { showKanjiDetails, renderKanjiVocabulary, renderKanjiExamples, renderKanjiRadicals, setupModalClose as setupKanjiModalClose } from './components/kanji-details.js';
 import { showRadicalDetails, setupModalClose as setupRadicalModalClose } from './components/radical-details.js';
 import { renderHistory, generatePreview, setupHistorySidebar } from './components/history-sidebar.js';
+import { renderKanjiCards, renderBrowserControls, renderLoading } from './components/kanji-browser.js';
 
 // Initialize API client
 const api = new JapaneseAnalyzerAPI();
@@ -18,6 +19,7 @@ let currentText = '';
 let analysisHistory = [];
 const MAX_HISTORY_ENTRIES = 20;
 let currentHistoryId = null;
+const BROWSER_PAGE_SIZE = 60;
 
 // DOM elements
 const inputText = document.getElementById('input-text');
@@ -37,6 +39,12 @@ const radicalModal = document.getElementById('radical-modal');
 const historySidebar = document.getElementById('history-sidebar');
 const historyList = document.getElementById('history-list');
 const clearHistoryBtn = document.getElementById('clear-history-btn');
+const mainEl = document.querySelector('main');
+const navTabs = document.querySelectorAll('.nav-tab');
+const browserControlsEl = document.getElementById('kanji-browser-controls');
+const browserListEl = document.getElementById('kanji-browser-list');
+const browserMoreBtn = document.getElementById('kanji-browser-more');
+const browserCountEl = document.getElementById('kanji-browser-count');
 
 // Initialize
 function init() {
@@ -64,6 +72,11 @@ function init() {
 
     // Setup token click handlers
     attachTokenClickHandlers(analyzedTextContainer, handleTokenClick);
+
+    // Setup view navigation (Analyze / Browse Kanji tabs)
+    mainEl.dataset.view = 'analyze';
+    navTabs.forEach(tab => tab.addEventListener('click', () => showView(tab.dataset.view)));
+    browserMoreBtn.addEventListener('click', loadMore);
 
     // Setup history sidebar
     setupHistorySidebar(historySidebar);
@@ -376,6 +389,111 @@ async function handleTokenClick(token) {
     navStack = [];
     currentView = null;
     await showDefinitionView(token.baseForm);
+}
+
+// --- Kanji browser page --------------------------------------------------
+// The Browse Kanji view. A single browserState object is the source of truth;
+// controls only mutate it (via handleBrowserChange) and the list re-renders.
+const DEFAULT_BROWSER_STATE = {
+    sort: 'frequency', jlpt: null, grade: null,
+    strokesMin: null, strokesMax: null, radicals: [],
+    readingRow: null, q: null, page: 1,
+};
+let browserState = { ...DEFAULT_BROWSER_STATE };
+let browserControls = null;   // { refresh } from renderBrowserControls
+let browserTotal = 0;
+let browserLoaded = 0;
+let browserInitialized = false;
+let browserLoading = false;
+
+function showView(view) {
+    mainEl.dataset.view = view;
+    navTabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+    if (view === 'browse' && !browserInitialized) {
+        initBrowser();
+    }
+}
+
+async function initBrowser() {
+    browserInitialized = true;
+    let radicals = [];
+    try {
+        radicals = await api.getRadicals();
+    } catch (error) {
+        console.error('Radical list load failed:', error);
+    }
+    browserControls = renderBrowserControls(browserControlsEl, {
+        radicals,
+        onChange: handleBrowserChange,
+    });
+    browserControls.refresh(browserState);
+    applyFilters();
+}
+
+function handleBrowserChange(patch) {
+    if (patch.clear) {
+        browserState = { ...DEFAULT_BROWSER_STATE };
+    } else if ('toggleRadical' in patch) {
+        const set = new Set(browserState.radicals);
+        set.has(patch.toggleRadical) ? set.delete(patch.toggleRadical) : set.add(patch.toggleRadical);
+        browserState.radicals = [...set];
+    } else {
+        Object.assign(browserState, patch);
+    }
+    if (browserControls) browserControls.refresh(browserState);
+    applyFilters();
+}
+
+async function applyFilters() {
+    browserState.page = 1;
+    browserLoading = true;
+    renderLoading(browserListEl);
+    browserMoreBtn.style.display = 'none';
+    try {
+        const res = await api.getKanjiList({ ...browserState, pageSize: BROWSER_PAGE_SIZE });
+        browserTotal = res.total;
+        browserLoaded = res.items.length;
+        renderKanjiCards(browserListEl, res, { onKanjiClick: openKanji, append: false });
+        updateBrowserMeta();
+    } catch (error) {
+        console.error('Kanji list load failed:', error);
+        browserListEl.innerHTML = '<div class="kanji-section-empty">Failed to load kanji.</div>';
+    } finally {
+        browserLoading = false;
+    }
+}
+
+async function loadMore() {
+    if (browserLoading || browserLoaded >= browserTotal) return;
+    browserLoading = true;
+    browserState.page += 1;
+    browserMoreBtn.disabled = true;
+    try {
+        const res = await api.getKanjiList({ ...browserState, pageSize: BROWSER_PAGE_SIZE });
+        browserLoaded += res.items.length;
+        renderKanjiCards(browserListEl, res, { onKanjiClick: openKanji, append: true });
+        updateBrowserMeta();
+    } catch (error) {
+        console.error('Kanji list load-more failed:', error);
+    } finally {
+        browserLoading = false;
+        browserMoreBtn.disabled = false;
+    }
+}
+
+function updateBrowserMeta() {
+    browserCountEl.textContent = browserTotal
+        ? `Showing ${browserLoaded} of ${browserTotal.toLocaleString()} kanji`
+        : '';
+    browserMoreBtn.style.display = browserLoaded < browserTotal ? '' : 'none';
+}
+
+// Open a kanji in the shared detail modal, starting a fresh drill-in stack
+// (same contract as handleTokenClick).
+function openKanji(character) {
+    navStack = [];
+    currentView = null;
+    showKanjiView(character);
 }
 
 // Start app

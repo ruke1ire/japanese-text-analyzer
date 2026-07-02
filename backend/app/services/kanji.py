@@ -1,18 +1,33 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import Optional
+from dataclasses import dataclass, field
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, or_, select
+from typing import List, Optional
 from app.models import (
     Kanji, KanjiReading, KanjiMeaning,
     Word, KanjiWordIndex, ExampleSentence, KanjiExampleIndex,
-    Radical, KanjiRadicalIndex,
+    Radical, KanjiRadicalIndex, KanjiReadingIndex,
 )
 from app.schemas import (
     KanjiResponse, KanjiReadings,
+    KanjiListResponse, RadicalListItem,
     KanjiVocabItem, KanjiVocabularyResponse,
     ExampleSentenceItem, KanjiExamplesResponse,
     RadicalItem, KanjiRadicalsResponse,
     RadicalKanjiItem, RadicalDetailResponse,
 )
+
+
+@dataclass
+class KanjiFilter:
+    """A single composable filter spec for the kanji browser. Every field is
+    optional; the query applies only the ones that are set."""
+    jlpt: Optional[int] = None
+    grade: Optional[int] = None
+    strokes_min: Optional[int] = None
+    strokes_max: Optional[int] = None
+    radicals: List[str] = field(default_factory=list)  # AND across all listed
+    reading_row: Optional[str] = None  # gojūon row char (あ/か/…)
+    q: Optional[str] = None  # kanji char or meaning keyword
 
 
 class KanjiService:
@@ -213,6 +228,157 @@ class KanjiService:
             kangxi_number=radical.kangxi_number,
             kanji=kanji,
         )
+
+    # --- Kanji browser: list / filter / sort ------------------------------
+
+    @staticmethod
+    def _order_by(sort: str):
+        """Return the ORDER BY clause list for a browser sort key. Every sort
+        keeps NULLs last and falls back to frequency then character so the
+        ordering is always fully deterministic."""
+        if sort == "strokes":
+            return [Kanji.stroke_count.is_(None), Kanji.stroke_count.asc(),
+                    Kanji.frequency.is_(None), Kanji.frequency.asc(), Kanji.character.asc()]
+        if sort == "jlpt":
+            # N5 (level 5, easiest) first, then N4…N1; unranked last.
+            return [Kanji.jlpt_level.is_(None), Kanji.jlpt_level.desc(),
+                    Kanji.frequency.is_(None), Kanji.frequency.asc(), Kanji.character.asc()]
+        if sort == "grade":
+            return [Kanji.grade.is_(None), Kanji.grade.asc(),
+                    Kanji.frequency.is_(None), Kanji.frequency.asc(), Kanji.character.asc()]
+        if sort == "reading":
+            # Correlated scalar subquery for the primary reading — independent
+            # of any joins/group_by the filters may have added.
+            primary = (
+                select(KanjiReadingIndex.reading)
+                .where(KanjiReadingIndex.kanji_char == Kanji.character,
+                       KanjiReadingIndex.is_primary.is_(True))
+                .limit(1)
+                .scalar_subquery()
+            )
+            return [primary.is_(None), primary.asc(), Kanji.character.asc()]
+        # default: newspaper frequency rank (lower = more frequent), NULLs last.
+        return [Kanji.frequency.is_(None), Kanji.frequency.asc(),
+                Kanji.stroke_count.asc(), Kanji.character.asc()]
+
+    @staticmethod
+    def _shape_kanji_list(db: Session, kanji_rows) -> List[KanjiResponse]:
+        """Build KanjiResponse items for a page of kanji, batch-resolving the
+        classical-radical glyphs once (avoids the per-kanji N+1 that
+        lookup_kanji would incur)."""
+        numbers = {int(k.radical) for k in kanji_rows if k.radical and k.radical.isdigit()}
+        rad_map = {}
+        if numbers:
+            for r in (db.query(Radical)
+                      .filter(Radical.kangxi_number.in_(numbers))
+                      .order_by(Radical.id.asc())  # first row = canonical glyph
+                      .all()):
+                rad_map.setdefault(r.kangxi_number, r)
+
+        items = []
+        for k in kanji_rows:
+            readings = KanjiReadings()
+            for reading in k.readings:
+                if reading.reading_type == "on":
+                    readings.on.append(reading.reading)
+                elif reading.reading_type == "kun":
+                    readings.kun.append(reading.reading)
+                elif reading.reading_type == "nanori":
+                    readings.nanori.append(reading.reading)
+
+            radical_character = None
+            radical_meaning = None
+            if k.radical and k.radical.isdigit():
+                rad = rad_map.get(int(k.radical))
+                if rad:
+                    radical_character = rad.character
+                    radical_meaning = rad.meaning
+
+            items.append(KanjiResponse(
+                character=k.character,
+                meanings=[m.meaning for m in k.meanings],
+                readings=readings,
+                stroke_count=k.stroke_count,
+                grade=k.grade,
+                jlpt_level=k.jlpt_level,
+                radical=k.radical,
+                radical_character=radical_character,
+                radical_meaning=radical_meaning,
+                frequency=k.frequency,
+            ))
+        return items
+
+    @staticmethod
+    def list_kanji(db: Session, filt: KanjiFilter, sort: str = "frequency",
+                   page: int = 1, page_size: int = 60) -> KanjiListResponse:
+        """List kanji for the browser, applying `filt` composably and ordering
+        by `sort`. Returns one page plus the total match count."""
+        query = db.query(Kanji).options(
+            selectinload(Kanji.readings),
+            selectinload(Kanji.meanings),
+        )
+
+        if filt.jlpt is not None:
+            query = query.filter(Kanji.jlpt_level == filt.jlpt)
+        if filt.grade is not None:
+            query = query.filter(Kanji.grade == filt.grade)
+        if filt.strokes_min is not None:
+            query = query.filter(Kanji.stroke_count >= filt.strokes_min)
+        if filt.strokes_max is not None:
+            query = query.filter(Kanji.stroke_count <= filt.strokes_max)
+
+        if filt.q and filt.q.strip():
+            term = filt.q.strip()
+            meaning_match = select(KanjiMeaning.kanji_id).where(
+                KanjiMeaning.meaning.ilike(f"%{term}%")
+            )
+            query = query.filter(or_(Kanji.character == term, Kanji.id.in_(meaning_match)))
+
+        if filt.reading_row:
+            reading_match = select(KanjiReadingIndex.kanji_char).where(
+                KanjiReadingIndex.row == filt.reading_row
+            )
+            query = query.filter(Kanji.character.in_(reading_match))
+
+        if filt.radicals:
+            # Kanji containing ALL selected radicals (AND).
+            query = (
+                query.join(KanjiRadicalIndex, KanjiRadicalIndex.kanji_char == Kanji.character)
+                .filter(KanjiRadicalIndex.radical_char.in_(filt.radicals))
+                .group_by(Kanji.id)
+                .having(func.count(func.distinct(KanjiRadicalIndex.radical_char)) == len(filt.radicals))
+            )
+
+        total = query.count()
+
+        kanji_rows = (
+            query.order_by(*KanjiService._order_by(sort))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+
+        return KanjiListResponse(
+            items=KanjiService._shape_kanji_list(db, kanji_rows),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    @staticmethod
+    def get_all_radicals(db: Session) -> List[RadicalListItem]:
+        """List the named radicals (those with a known meaning) for the browser's
+        radical-filter picker, ordered simplest-first by stroke count."""
+        rows = (
+            db.query(Radical)
+            .filter(Radical.meaning.isnot(None))
+            .order_by(Radical.strokes.is_(None), Radical.strokes.asc(), Radical.character.asc())
+            .all()
+        )
+        return [
+            RadicalListItem(character=r.character, meaning=r.meaning, strokes=r.strokes)
+            for r in rows
+        ]
 
     @staticmethod
     def get_kanji_count(db: Session) -> int:

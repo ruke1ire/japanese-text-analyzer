@@ -25,6 +25,36 @@ export class JapaneseAnalyzerAPI {
         return await response.json();
     }
 
+    async getKanjiList(params = {}) {
+        // params: { sort, jlpt, grade, strokesMin, strokesMax, radicals: [],
+        //           readingRow, q, page, pageSize }
+        const qs = new URLSearchParams();
+        if (params.sort) qs.set('sort', params.sort);
+        if (params.jlpt != null) qs.set('jlpt', params.jlpt);
+        if (params.grade != null) qs.set('grade', params.grade);
+        if (params.strokesMin != null) qs.set('strokes_min', params.strokesMin);
+        if (params.strokesMax != null) qs.set('strokes_max', params.strokesMax);
+        if (params.readingRow) qs.set('reading_row', params.readingRow);
+        if (params.q) qs.set('q', params.q);
+        if (params.page != null) qs.set('page', params.page);
+        if (params.pageSize != null) qs.set('page_size', params.pageSize);
+        (params.radicals || []).forEach(r => qs.append('radical', r));
+
+        const response = await fetch(`${this.baseURL}/kanji?${qs.toString()}`);
+        if (!response.ok) {
+            throw new Error(`Kanji list failed: ${response.statusText}`);
+        }
+        return await response.json();
+    }
+
+    async getRadicals() {
+        const response = await fetch(`${this.baseURL}/radicals`);
+        if (!response.ok) {
+            throw new Error(`Radical list failed: ${response.statusText}`);
+        }
+        return await response.json();
+    }
+
     async getWordDefinition(word) {
         const response = await fetch(
             `${this.baseURL}/word/${encodeURIComponent(word)}`

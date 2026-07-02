@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas import (
     AnalyzeRequest, AnalyzeResponse,
-    WordResponse, KanjiResponse,
+    WordResponse, KanjiResponse, KanjiListResponse, RadicalListItem,
     KanjiVocabularyResponse, KanjiExamplesResponse,
     KanjiRadicalsResponse, RadicalDetailResponse,
     TranslateRequest, TranslateResponse,
@@ -11,7 +12,7 @@ from app.schemas import (
 )
 from app.services.analyzer import get_analyzer
 from app.services.dictionary import DictionaryService
-from app.services.kanji import KanjiService
+from app.services.kanji import KanjiService, KanjiFilter
 from app.services.translator import get_translator
 
 router = APIRouter()
@@ -40,6 +41,52 @@ async def get_word_definition(word: str, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail=f"Word not found: {word}")
     return result
+
+
+@router.get("/kanji", response_model=KanjiListResponse)
+async def list_kanji(
+    sort: str = "frequency",
+    jlpt: Optional[int] = None,
+    grade: Optional[int] = None,
+    strokes_min: Optional[int] = None,
+    strokes_max: Optional[int] = None,
+    radical: List[str] = Query(default=[]),
+    reading_row: Optional[str] = None,
+    q: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 60,
+    db: Session = Depends(get_db),
+):
+    """
+    Browse kanji with composable filters and sorting.
+
+    - **sort**: frequency (default) | strokes | jlpt | grade | reading (gojūon)
+    - **jlpt**: filter to a JLPT level (5=N5 … 1=N1)
+    - **grade**: filter to a school grade
+    - **strokes_min / strokes_max**: stroke-count range
+    - **radical**: component radical glyph(s); repeatable, AND semantics
+    - **reading_row**: gojūon row char (あ/か/さ/…) to filter by reading
+    - **q**: kanji character or English meaning keyword
+    - **page / page_size**: pagination (page_size capped at 200)
+    """
+    filt = KanjiFilter(
+        jlpt=jlpt,
+        grade=grade,
+        strokes_min=strokes_min,
+        strokes_max=strokes_max,
+        radicals=radical,
+        reading_row=reading_row,
+        q=q,
+    )
+    page = max(1, page)
+    page_size = min(max(1, page_size), 200)
+    return KanjiService.list_kanji(db, filt, sort=sort, page=page, page_size=page_size)
+
+
+@router.get("/radicals", response_model=List[RadicalListItem])
+async def list_radicals(db: Session = Depends(get_db)):
+    """List named radicals for the browser's radical-filter picker."""
+    return KanjiService.get_all_radicals(db)
 
 
 @router.get("/kanji/{character}", response_model=KanjiResponse)

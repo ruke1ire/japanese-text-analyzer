@@ -118,3 +118,19 @@ class KanjiRadicalIndex(Base):
     id = Column(Integer, primary_key=True, index=True)
     kanji_char = Column(String, nullable=False, index=True)
     radical_char = Column(String, nullable=False, index=True)
+
+
+class KanjiReadingIndex(Base):
+    """Lookup index for browsing kanji by reading in gojūon (あいうえお) order.
+
+    One row per (kanji, distinct normalized hiragana reading). ``row`` is the
+    gojūon row (あ/か/さ/…) used for filtering; ``is_primary`` marks the single
+    reading used as the sort key when ordering by reading (first on-reading,
+    else first kun-reading)."""
+    __tablename__ = "kanji_reading_index"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kanji_char = Column(String, nullable=False, index=True)
+    reading = Column(String, nullable=False, index=True)  # normalized hiragana
+    row = Column(String, nullable=False, index=True)       # gojūon row char
+    is_primary = Column(Boolean, default=False, index=True)
