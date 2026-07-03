@@ -55,6 +55,19 @@ class KanjiResponse(BaseModel):
     frequency: Optional[int] = None
 
 
+class KanjiListResponse(BaseModel):
+    items: List[KanjiResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class RadicalListItem(BaseModel):
+    character: str
+    meaning: Optional[str] = None
+    strokes: Optional[int] = None
+
+
 class KanjiVocabItem(BaseModel):
     word: str
     reading: str

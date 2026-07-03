@@ -24,6 +24,7 @@ from import_jmdict import import_jmdict, build_kanji_word_index
 from import_kanjidic import import_kanjidic
 from import_examples import import_examples
 from import_radicals import import_radicals
+from import_reading_index import import_reading_index
 import urllib.request
 
 
@@ -99,6 +100,11 @@ def main():
     # that have a detail page), so this runs after KANJIDIC too.
     print("\n8. Importing radicals (KRADFILE)...")
     import_radicals()
+
+    # The reading index is derived from the readings imported by KANJIDIC, so
+    # it runs after step 5.
+    print("\n9. Building kanji reading index (gojūon)...")
+    import_reading_index()
 
     print("\n" + "=" * 60)
     print("Database initialization complete!")

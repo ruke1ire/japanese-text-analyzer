@@ -22,6 +22,10 @@
                 <header>
                     <h1>Japanese Text Analyzer</h1>
                     <p class="subtitle">Local text analysis with furigana, definitions, and kanji breakdown</p>
+                    <nav class="nav-tabs">
+                        <button class="nav-tab active" data-view="analyze">Analyze</button>
+                        <button class="nav-tab" data-view="browse">Browse Kanji</button>
+                    </nav>
                 </header>
 
                 <main>
@@ -59,6 +63,18 @@
                             <span id="translation-method-info" class="meta-info"></span>
                         </div>
                         <div id="translation-text" class="translation-text"></div>
+                    </section>
+
+                    <section class="kanji-browser-section" id="kanji-browser-section" style="display: none;">
+                        <div class="output-header">
+                            <h2>Browse Kanji</h2>
+                            <span id="kanji-browser-count" class="meta-info"></span>
+                        </div>
+                        <div id="kanji-browser-controls"></div>
+                        <div id="kanji-browser-list"></div>
+                        <div class="browser-more-wrap">
+                            <button id="kanji-browser-more" class="secondary-btn" style="display: none;">Load more</button>
+                        </div>
                     </section>
                 </main>
 

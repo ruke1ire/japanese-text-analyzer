@@ -2,6 +2,12 @@
  * Kanji details component - displays kanji information
  */
 
+import {
+    createReadingGroup,
+    createInfoGroup,
+    createKanjiGlyphHeader,
+} from './kanji-primitives.js';
+
 export function showKanjiDetails(kanjiData, modal, onWordClick, onRadicalClick) {
     const content = modal.querySelector('#kanji-content');
     content.innerHTML = '';
@@ -13,20 +19,7 @@ export function showKanjiDetails(kanjiData, modal, onWordClick, onRadicalClick) 
     }
 
     // Header with large kanji character
-    const header = document.createElement('div');
-    header.className = 'kanji-header';
-
-    const character = document.createElement('div');
-    character.className = 'kanji-character';
-    character.textContent = kanjiData.character;
-    header.appendChild(character);
-
-    const meanings = document.createElement('div');
-    meanings.className = 'kanji-meanings';
-    meanings.textContent = kanjiData.meanings.join(', ');
-    header.appendChild(meanings);
-
-    content.appendChild(header);
+    content.appendChild(createKanjiGlyphHeader(kanjiData));
 
     // Details grid
     const details = document.createElement('div');
@@ -34,13 +27,13 @@ export function showKanjiDetails(kanjiData, modal, onWordClick, onRadicalClick) 
 
     // On readings
     if (kanjiData.readings.on.length > 0) {
-        const onGroup = createDetailGroup('On\'yomi (音読み)', kanjiData.readings.on);
+        const onGroup = createReadingGroup('On\'yomi (音読み)', kanjiData.readings.on);
         details.appendChild(onGroup);
     }
 
     // Kun readings
     if (kanjiData.readings.kun.length > 0) {
-        const kunGroup = createDetailGroup('Kun\'yomi (訓読み)', kanjiData.readings.kun);
+        const kunGroup = createReadingGroup('Kun\'yomi (訓読み)', kanjiData.readings.kun);
         details.appendChild(kunGroup);
     }
 
@@ -259,44 +252,6 @@ export function renderKanjiRadicals(radicalsData, modal) {
     });
 
     list.appendChild(chips);
-}
-
-function createDetailGroup(title, items) {
-    const group = document.createElement('div');
-    group.className = 'detail-group';
-
-    const titleElem = document.createElement('h4');
-    titleElem.textContent = title;
-    group.appendChild(titleElem);
-
-    const list = document.createElement('div');
-    list.className = 'reading-list';
-
-    items.forEach(item => {
-        const badge = document.createElement('span');
-        badge.className = 'reading-badge';
-        badge.textContent = item;
-        list.appendChild(badge);
-    });
-
-    group.appendChild(list);
-    return group;
-}
-
-function createInfoGroup(title, value) {
-    const group = document.createElement('div');
-    group.className = 'detail-group';
-
-    const titleElem = document.createElement('h4');
-    titleElem.textContent = title;
-    group.appendChild(titleElem);
-
-    const info = document.createElement('div');
-    info.className = 'info-item';
-    info.textContent = value;
-    group.appendChild(info);
-
-    return group;
 }
 
 export function setupModalClose(modal) {
