@@ -8,7 +8,9 @@ A fully offline-capable Japanese text analysis tool with furigana display, word 
 
 - **Furigana Display**: Automatic hiragana readings above kanji characters
 - **Word Definitions**: Click any word for English meanings, part of speech, and JLPT level (215k+ words from JMdict)
-- **Kanji Breakdown**: Individual kanji information including readings, meanings, stroke count, and grade (13k+ kanji from KANJIDIC2)
+- **Kanji Breakdown**: Individual kanji information including on/kun readings, meanings, stroke count, grade, JLPT level, and frequency rank (13k+ kanji from KANJIDIC2). Each kanji detail also shows its **component radicals**, **vocabulary** that uses it, and **example sentences** (Tatoeba/Tanaka corpus), all clickable for drill-in navigation.
+- **Kanji Browser**: A dedicated page to browse and study kanji, ordered by frequency by default. Filter by JLPT level, component radical(s), reading in gojūon (あいうえお) order, school grade, stroke-count range, or a meaning/character search — and sort by frequency, strokes, JLPT, grade, or reading. Click any kanji to open the same detail view.
+- **Analysis History**: A collapsible sidebar keeps your recent analyses for quick recall.
 - **Translation Options**:
   - **Offline Translation** (default): Fully local Japanese-English translation using LiquidAI LFM2-350M model - no API keys or internet required
   - **DeepL API** (optional): High-quality cloud translation for users who prefer it
@@ -53,7 +55,7 @@ The example shows a Japanese cooking recipe being translated to English entirely
 
 - **Backend**: FastAPI + SQLite + fugashi (MeCab wrapper)
 - **Frontend**: Vanilla HTML/CSS/JavaScript
-- **Dictionaries**: JMdict (215k+ words), KANJIDIC2 (13k+ kanji)
+- **Dictionaries**: JMdict (215k+ words), KANJIDIC2 (13k+ kanji), KRADFILE (radical decomposition), Tatoeba/Tanaka (example sentences)
 - **Translation**: llama.cpp with LFM2-350M-ENJP-MT model (GGUF, 219MB)
 - **Deployment**: Docker Compose (3 services: backend, frontend, llamacpp)
 
@@ -145,11 +147,20 @@ docker compose down
 
 ## Usage
 
+Two views are available via the tabs at the top: **Analyze** and **Browse Kanji**.
+
+**Analyze:**
 1. Enter Japanese text in the input area
 2. Click **Analyze** to see the text with furigana
 3. Click any word to view definitions and meanings
-4. Click any kanji in the definition popup to see detailed kanji information
+4. Click any kanji to see detailed kanji information — readings, meanings, component radicals, vocabulary, and example sentences (each drill-in is clickable, with a **← Back** button)
 5. Click **Translate** for full sentence translation (if configured)
+
+**Browse Kanji:**
+1. Switch to the **Browse Kanji** tab to see kanji ordered by frequency
+2. Use the filter panel to narrow by JLPT level, component radical(s), gojūon reading row, grade, stroke-count range, or search
+3. Change the sort order (frequency, strokes, JLPT, grade, or reading), and use **Load more** to page through results
+4. Click any kanji card to open the full detail view
 
 ## Configuration
 
@@ -240,15 +251,22 @@ japanese-text-analyzer/
 │   │   ├── schemas.py                   # Pydantic schemas
 │   │   ├── api/
 │   │   │   └── routes.py                # API endpoints
-│   │   └── services/
-│   │       ├── analyzer.py              # Text analysis (MeCab)
-│   │       ├── dictionary.py            # Word lookup
-│   │       ├── kanji.py                 # Kanji lookup
-│   │       └── translator.py            # Translation (llamacpp/DeepL)
+│   │   ├── services/
+│   │   │   ├── analyzer.py              # Text analysis (MeCab)
+│   │   │   ├── dictionary.py            # Word lookup
+│   │   │   ├── kanji.py                 # Kanji lookup + browser list/filter/sort
+│   │   │   └── translator.py            # Translation (llamacpp/DeepL)
+│   │   ├── utils/
+│   │   │   └── kana.py                  # Kana normalization + gojūon rows
+│   │   └── data/
+│   │       └── radicals.py              # Static radical name/meaning table
 │   ├── scripts/
-│   │   ├── init_database.py             # Database initialization
+│   │   ├── init_database.py             # Database initialization (orchestrates imports)
 │   │   ├── import_jmdict.py             # JMdict import
 │   │   ├── import_kanjidic.py           # KANJIDIC import
+│   │   ├── import_radicals.py           # KRADFILE radical import
+│   │   ├── import_examples.py           # Tatoeba/Tanaka example sentences import
+│   │   ├── import_reading_index.py      # Gojūon reading index (kanji browser)
 │   │   └── download_translation_model.py # Model download
 │   ├── requirements.txt
 │   └── Dockerfile
@@ -258,12 +276,16 @@ japanese-text-analyzer/
 │   ├── images/
 │   │   └── logo.svg                     # Favicon
 │   └── js/
-│       ├── app.js                       # Main application
+│       ├── app.js                       # Main application (views, navigation, browser state)
 │       ├── api.js                       # API client
 │       └── components/                  # UI components
 │           ├── text-display.js          # Furigana rendering
 │           ├── definition-popup.js      # Word definitions
-│           └── kanji-details.js         # Kanji info modal
+│           ├── kanji-details.js         # Kanji info modal
+│           ├── kanji-primitives.js      # Shared kanji render helpers (modal + cards)
+│           ├── kanji-browser.js         # Browse Kanji page (cards + filters)
+│           ├── radical-details.js       # Radical info modal
+│           └── history-sidebar.js       # Analysis history sidebar
 ├── llamacpp/
 │   └── Dockerfile                       # llama.cpp server config
 ├── data/
@@ -279,7 +301,13 @@ japanese-text-analyzer/
 
 - `POST /api/analyze` - Analyze Japanese text
 - `GET /api/word/{word}` - Get word definition
+- `GET /api/kanji` - Browse/list kanji with filters and sorting (`sort`, `jlpt`, `grade`, `strokes_min`, `strokes_max`, `radical` [repeatable], `reading_row`, `q`, `page`, `page_size`)
 - `GET /api/kanji/{character}` - Get kanji information
+- `GET /api/kanji/{character}/vocabulary` - Words that contain the kanji
+- `GET /api/kanji/{character}/examples` - Example sentences that contain the kanji
+- `GET /api/kanji/{character}/radicals` - Component radicals of the kanji
+- `GET /api/radical/{character}` - Radical detail + kanji that use it
+- `GET /api/radicals` - List named radicals (for the browser's radical filter)
 - `POST /api/translate` - Translate text
 - `GET /api/health` - Health check with database stats
 
@@ -352,6 +380,8 @@ docker compose logs frontend
 
 - **JMdict**: Japanese-English dictionary (215k+ entries) - [EDRDG](http://www.edrdg.org/jmdict/j_jmdict.html)
 - **KANJIDIC2**: Kanji information (13k+ characters) - [EDRDG](http://www.edrdg.org/wiki/index.php/KANJIDIC_Project)
+- **KRADFILE**: Kanji radical decomposition - [EDRDG](http://www.edrdg.org/krad/kradinf.html)
+- **Tatoeba/Tanaka corpus**: Japanese-English example sentences - [EDRDG](http://www.edrdg.org/wiki/index.php/Tanaka_Corpus)
 - **MeCab/UniDic**: Morphological analysis - [UniDic](https://unidic.ninjal.ac.jp/)
 - **LFM2-350M**: Japanese-English translation model - [Liquid AI](https://huggingface.co/LiquidAI/LFM2-350M-ENJP-MT)
 - **llama.cpp**: Efficient LLM inference - [ggml-org](https://github.com/ggml-org/llama.cpp)
