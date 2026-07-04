@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass, field
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, or_, select
@@ -14,7 +15,17 @@ from app.schemas import (
     ExampleSentenceItem, KanjiExamplesResponse,
     RadicalItem, KanjiRadicalsResponse,
     RadicalKanjiItem, RadicalDetailResponse,
+    FlashcardItem, FlashcardDeckResponse,
 )
+
+# Length floor shared by example-sentence lookups: drop fragments, keep sentences
+# that are actually useful to read.
+EXAMPLE_MIN_LENGTH = 6
+
+# When randomizing which example a flashcard shows, draw from the N shortest
+# qualifying sentences per kanji — keeps the pool digestible and bounded while
+# still giving variety.
+FLASHCARD_EXAMPLE_POOL = 40
 
 
 @dataclass
@@ -138,7 +149,7 @@ class KanjiService:
             .join(KanjiExampleIndex, KanjiExampleIndex.sentence_id == ExampleSentence.id)
             .filter(
                 KanjiExampleIndex.kanji_char == character,
-                ExampleSentence.length >= 6,
+                ExampleSentence.length >= EXAMPLE_MIN_LENGTH,
             )
             .order_by(
                 ExampleSentence.length.asc(),
@@ -309,15 +320,13 @@ class KanjiService:
         return items
 
     @staticmethod
-    def list_kanji(db: Session, filt: KanjiFilter, sort: str = "frequency",
-                   page: int = 1, page_size: int = 60) -> KanjiListResponse:
-        """List kanji for the browser, applying `filt` composably and ordering
-        by `sort`. Returns one page plus the total match count."""
-        query = db.query(Kanji).options(
-            selectinload(Kanji.readings),
-            selectinload(Kanji.meanings),
-        )
+    def _apply_filters(query, filt: KanjiFilter):
+        """Apply a `KanjiFilter` to a query whose primary entity is `Kanji`.
 
+        Works for both a full `db.query(Kanji)` (browser) and a lightweight
+        `db.query(Kanji.character)` (flashcard deck) — every clause references
+        `Kanji` columns or joins keyed on `Kanji`, so callers share one source
+        of truth for what "matches these filters" means."""
         if filt.jlpt is not None:
             query = query.filter(Kanji.jlpt_level == filt.jlpt)
         if filt.grade is not None:
@@ -349,6 +358,21 @@ class KanjiService:
                 .having(func.count(func.distinct(KanjiRadicalIndex.radical_char)) == len(filt.radicals))
             )
 
+        return query
+
+    @staticmethod
+    def list_kanji(db: Session, filt: KanjiFilter, sort: str = "frequency",
+                   page: int = 1, page_size: int = 60) -> KanjiListResponse:
+        """List kanji for the browser, applying `filt` composably and ordering
+        by `sort`. Returns one page plus the total match count."""
+        query = KanjiService._apply_filters(
+            db.query(Kanji).options(
+                selectinload(Kanji.readings),
+                selectinload(Kanji.meanings),
+            ),
+            filt,
+        )
+
         total = query.count()
 
         kanji_rows = (
@@ -363,6 +387,75 @@ class KanjiService:
             total=total,
             page=page,
             page_size=page_size,
+        )
+
+    @staticmethod
+    def build_deck(db: Session, filt: KanjiFilter, seed: int, size: int) -> FlashcardDeckResponse:
+        """Build a reproducible flashcard deck from the same filters as the
+        browser. `seed` drives BOTH the deck order and the per-kanji example
+        choice, so the same (filters, seed, size) always yields the identical
+        deck. Only kanji that have a usable example sentence are included, so
+        every card has a sentence."""
+        # Matching kanji that also have at least one qualifying example.
+        chars_q = KanjiService._apply_filters(db.query(Kanji.character), filt)
+        example_chars = select(KanjiExampleIndex.kanji_char).join(
+            ExampleSentence, ExampleSentence.id == KanjiExampleIndex.sentence_id
+        ).where(ExampleSentence.length >= EXAMPLE_MIN_LENGTH)
+        chars = [c for (c,) in chars_q.filter(Kanji.character.in_(example_chars)).all()]
+
+        total_matched = len(chars)
+
+        rng = random.Random(seed)
+        rng.shuffle(chars)
+        deck_chars = chars[:max(1, size)]
+
+        # Load full kanji data for just the deck, then restore shuffled order.
+        kanji_rows = (
+            db.query(Kanji)
+            .options(selectinload(Kanji.readings), selectinload(Kanji.meanings))
+            .filter(Kanji.character.in_(deck_chars))
+            .all()
+        )
+        shaped = {k.character: r for k, r in
+                  zip(kanji_rows, KanjiService._shape_kanji_list(db, kanji_rows))}
+
+        # Batch every candidate sentence for the deck in one query, grouped by
+        # kanji, shortest-first (we keep only the top FLASHCARD_EXAMPLE_POOL per
+        # kanji as the random pool).
+        rows = (
+            db.query(KanjiExampleIndex.kanji_char, ExampleSentence.japanese, ExampleSentence.english)
+            .join(ExampleSentence, ExampleSentence.id == KanjiExampleIndex.sentence_id)
+            .filter(
+                KanjiExampleIndex.kanji_char.in_(deck_chars),
+                ExampleSentence.length >= EXAMPLE_MIN_LENGTH,
+            )
+            .order_by(ExampleSentence.length.asc(), ExampleSentence.id.asc())
+            .all()
+        )
+        pools: dict = {}
+        for char, jp, en in rows:
+            pool = pools.setdefault(char, [])
+            if len(pool) < FLASHCARD_EXAMPLE_POOL:
+                pool.append((jp, en))
+
+        cards = []
+        for char in deck_chars:
+            kanji = shaped.get(char)
+            if kanji is None:
+                continue
+            pool = pools.get(char)
+            # Draw sequentially from the seeded rng in deck order -> deterministic.
+            example = None
+            if pool:
+                jp, en = rng.choice(pool)
+                example = ExampleSentenceItem(japanese=jp, english=en)
+            cards.append(FlashcardItem(kanji=kanji, example=example))
+
+        return FlashcardDeckResponse(
+            seed=seed,
+            size=len(cards),
+            total_matched=total_matched,
+            cards=cards,
         )
 
     @staticmethod

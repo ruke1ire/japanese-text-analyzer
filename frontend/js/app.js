@@ -9,6 +9,8 @@ import { showKanjiDetails, renderKanjiVocabulary, renderKanjiExamples, renderKan
 import { showRadicalDetails, setupModalClose as setupRadicalModalClose } from './components/radical-details.js';
 import { renderHistory, generatePreview, setupHistorySidebar } from './components/history-sidebar.js';
 import { renderKanjiCards, renderBrowserControls, renderLoading } from './components/kanji-browser.js';
+import { DEFAULT_FILTER_STATE, applyFilterPatch } from './kanji-filter.js';
+import { initFlashcards } from './components/flashcards.js';
 
 // Initialize API client
 const api = new JapaneseAnalyzerAPI();
@@ -45,6 +47,8 @@ const browserControlsEl = document.getElementById('kanji-browser-controls');
 const browserListEl = document.getElementById('kanji-browser-list');
 const browserMoreBtn = document.getElementById('kanji-browser-more');
 const browserCountEl = document.getElementById('kanji-browser-count');
+const browsePracticeBtn = document.getElementById('browse-practice-btn');
+const flashcardsSectionEl = document.getElementById('flashcards-section');
 
 // Initialize
 function init() {
@@ -73,10 +77,19 @@ function init() {
     // Setup token click handlers
     attachTokenClickHandlers(analyzedTextContainer, handleTokenClick);
 
-    // Setup view navigation (Analyze / Browse Kanji tabs)
+    // Setup view navigation (Analyze / Browse Kanji / Flashcards tabs)
     mainEl.dataset.view = 'analyze';
     navTabs.forEach(tab => tab.addEventListener('click', () => showView(tab.dataset.view)));
     browserMoreBtn.addEventListener('click', loadMore);
+
+    // "Practice these" — carry the browser's current filters into a flashcard deck.
+    if (browsePracticeBtn) {
+        browsePracticeBtn.addEventListener('click', () => {
+            ensureFlashcards();
+            flashcards.setFilters(browserState);
+            showView('flashcards');
+        });
+    }
 
     // Setup history sidebar
     setupHistorySidebar(historySidebar);
@@ -394,23 +407,35 @@ async function handleTokenClick(token) {
 // --- Kanji browser page --------------------------------------------------
 // The Browse Kanji view. A single browserState object is the source of truth;
 // controls only mutate it (via handleBrowserChange) and the list re-renders.
-const DEFAULT_BROWSER_STATE = {
-    sort: 'frequency', jlpt: null, grade: null,
-    strokesMin: null, strokesMax: null, radicals: [],
-    readingRow: null, q: null, page: 1,
-};
-let browserState = { ...DEFAULT_BROWSER_STATE };
+let browserState = { ...DEFAULT_FILTER_STATE };
 let browserControls = null;   // { refresh } from renderBrowserControls
 let browserTotal = 0;
 let browserLoaded = 0;
 let browserInitialized = false;
 let browserLoading = false;
 
+let flashcards = null;  // lazily-created flashcards controller
+
+function ensureFlashcards() {
+    if (!flashcards) {
+        flashcards = initFlashcards(flashcardsSectionEl, { api, onOpenKanji: openKanji });
+    }
+}
+
 function showView(view) {
+    const prev = mainEl.dataset.view;
     mainEl.dataset.view = view;
     navTabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+    // Leaving flashcards: detach its keyboard shortcuts.
+    if (prev === 'flashcards' && view !== 'flashcards' && flashcards) {
+        flashcards.hide();
+    }
     if (view === 'browse' && !browserInitialized) {
         initBrowser();
+    }
+    if (view === 'flashcards') {
+        ensureFlashcards();
+        flashcards.show();
     }
 }
 
@@ -431,15 +456,7 @@ async function initBrowser() {
 }
 
 function handleBrowserChange(patch) {
-    if (patch.clear) {
-        browserState = { ...DEFAULT_BROWSER_STATE };
-    } else if ('toggleRadical' in patch) {
-        const set = new Set(browserState.radicals);
-        set.has(patch.toggleRadical) ? set.delete(patch.toggleRadical) : set.add(patch.toggleRadical);
-        browserState.radicals = [...set];
-    } else {
-        Object.assign(browserState, patch);
-    }
+    browserState = applyFilterPatch(browserState, patch);
     if (browserControls) browserControls.refresh(browserState);
     applyFilters();
 }

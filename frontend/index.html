@@ -25,6 +25,7 @@
                     <nav class="nav-tabs">
                         <button class="nav-tab active" data-view="analyze">Analyze</button>
                         <button class="nav-tab" data-view="browse">Browse Kanji</button>
+                        <button class="nav-tab" data-view="flashcards">Flashcards</button>
                     </nav>
                 </header>
 
@@ -69,6 +70,7 @@
                         <div class="output-header">
                             <h2>Browse Kanji</h2>
                             <span id="kanji-browser-count" class="meta-info"></span>
+                            <button id="browse-practice-btn" class="secondary-btn">Practice these →</button>
                         </div>
                         <div id="kanji-browser-controls"></div>
                         <div id="kanji-browser-list"></div>
@@ -76,6 +78,8 @@
                             <button id="kanji-browser-more" class="secondary-btn" style="display: none;">Load more</button>
                         </div>
                     </section>
+
+                    <section class="flashcards-section" id="flashcards-section" style="display: none;"></section>
                 </main>
 
                 <footer>
