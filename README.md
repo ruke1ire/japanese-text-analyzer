@@ -9,6 +9,7 @@ A fully offline-capable Japanese text analysis tool with furigana display, word 
 - **Furigana Display**: Automatic hiragana readings above kanji characters
 - **Word Definitions**: Click any word for English meanings, part of speech, and JLPT level (215k+ words from JMdict)
 - **Kanji Breakdown**: Individual kanji information including readings, meanings, stroke count, and grade (13k+ kanji from KANJIDIC2)
+- **Browse Kanji**: Dedicated page to browse and filter all kanji — sort by frequency, strokes, JLPT, grade, or reading, and filter by gojūon (あいうえお) reading row, JLPT level, grade, and radicals
 - **Translation Options**:
   - **Offline Translation** (default): Fully local Japanese-English translation using LiquidAI LFM2-350M model - no API keys or internet required
   - **DeepL API** (optional): High-quality cloud translation for users who prefer it
@@ -66,7 +67,27 @@ The example shows a Japanese cooking recipe being translated to English entirely
 - 1GB RAM minimum (for Q4 quantized translation model)
 - Internet connection (only for initial setup)
 
-### Installation
+### Quick Setup (recommended)
+
+Everything runs through Docker — you only need Docker with the compose plugin (no host Python, MeCab, or other tools).
+
+```bash
+git clone <your-repo-url>
+cd japanese-text-analyzer
+./setup.sh            # or: ./setup.sh Q4_0  to pick a different model quantization
+```
+
+`setup.sh` creates `.env`, builds the images, initializes the database (downloads dictionaries, imports ~215k words / ~13k kanji and the browse indexes), downloads the translation model, and starts all services. Every step is idempotent, so it's safe to re-run.
+
+To update an existing install later, just run:
+
+```bash
+./update.sh           # git pull + rebuild + apply any new data/schema (idempotent)
+```
+
+Then open http://localhost:3000. The manual steps below are equivalent if you prefer to run them yourself.
+
+### Installation (manual)
 
 1. **Clone the repository and navigate to it**
    ```bash
@@ -93,11 +114,17 @@ The example shows a Japanese cooking recipe being translated to English entirely
 
 4. **Download the translation model** (one-time setup, ~1 minute)
 
-   **Default (recommended for most users)**:
+   **Default (recommended for most users)** — run inside the container so no host Python is needed:
+   ```bash
+   docker compose run --rm -e MODELS_DIR=/app/data/models backend \
+       python scripts/download_translation_model.py
+   ```
+   Downloads Q4_K_M (229MB, 1-2GB RAM, good balance). `MODELS_DIR=/app/data/models` points the download at the mounted volume so it persists.
+
+   Alternatively, if you have host Python with `requests` and `tqdm` installed, you can run it directly on the host:
    ```bash
    python3 backend/scripts/download_translation_model.py
    ```
-   Downloads Q4_K_M (229MB, 1-2GB RAM, good balance)
 
    **For different device specs**:
    ```bash

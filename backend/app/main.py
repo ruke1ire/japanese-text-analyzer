@@ -1,12 +1,26 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import routes
 from app.config import API_TITLE, API_VERSION, API_DESCRIPTION, ALLOWED_ORIGINS
+from app.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure all tables exist before serving. init_db() is create_all(), which
+    # only creates missing tables, so schema additions (e.g. new indexes) apply
+    # automatically on deploy without a manual migration step.
+    init_db()
+    yield
+
 
 app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
-    description=API_DESCRIPTION
+    description=API_DESCRIPTION,
+    lifespan=lifespan,
 )
 
 # CORS middleware for frontend access
