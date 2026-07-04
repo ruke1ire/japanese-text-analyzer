@@ -90,6 +90,18 @@ class KanjiExamplesResponse(BaseModel):
     examples: List[ExampleSentenceItem]
 
 
+class FlashcardItem(BaseModel):
+    kanji: KanjiResponse
+    example: Optional[ExampleSentenceItem] = None  # one randomly chosen sentence
+
+
+class FlashcardDeckResponse(BaseModel):
+    seed: int              # the seed used (echoed so the deck is reproducible)
+    size: int              # number of cards actually returned
+    total_matched: int     # matching kanji that have a usable example sentence
+    cards: List[FlashcardItem]
+
+
 class RadicalItem(BaseModel):
     character: str
     meaning: Optional[str] = None

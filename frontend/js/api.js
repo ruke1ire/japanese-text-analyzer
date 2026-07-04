@@ -50,6 +50,28 @@ export class JapaneseAnalyzerAPI {
         return await response.json();
     }
 
+    async getFlashcardDeck(params = {}) {
+        // params: the filter state (same keys as getKanjiList) plus
+        //         { seed, size }. `sort`/`page`/`pageSize` are ignored by the
+        //         deck endpoint (order is seed-driven) and simply not sent.
+        const qs = new URLSearchParams();
+        if (params.jlpt != null) qs.set('jlpt', params.jlpt);
+        if (params.grade != null) qs.set('grade', params.grade);
+        if (params.strokesMin != null) qs.set('strokes_min', params.strokesMin);
+        if (params.strokesMax != null) qs.set('strokes_max', params.strokesMax);
+        if (params.readingRow) qs.set('reading_row', params.readingRow);
+        if (params.q) qs.set('q', params.q);
+        if (params.seed != null) qs.set('seed', params.seed);
+        if (params.size != null) qs.set('size', params.size);
+        (params.radicals || []).forEach(r => qs.append('radical', r));
+
+        const response = await fetch(`${this.baseURL}/kanji/deck?${qs.toString()}`);
+        if (!response.ok) {
+            throw new Error(`Flashcard deck failed: ${response.statusText}`);
+        }
+        return await response.json();
+    }
+
     async getRadicals() {
         const response = await fetch(`${this.baseURL}/radicals`);
         if (!response.ok) {

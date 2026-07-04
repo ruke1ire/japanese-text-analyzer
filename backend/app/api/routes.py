@@ -1,3 +1,4 @@
+import random
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from app.schemas import (
     WordResponse, KanjiResponse, KanjiListResponse, RadicalListItem,
     KanjiVocabularyResponse, KanjiExamplesResponse,
     KanjiRadicalsResponse, RadicalDetailResponse,
+    FlashcardDeckResponse,
     TranslateRequest, TranslateResponse,
     HealthResponse
 )
@@ -81,6 +83,45 @@ async def list_kanji(
     page = max(1, page)
     page_size = min(max(1, page_size), 200)
     return KanjiService.list_kanji(db, filt, sort=sort, page=page, page_size=page_size)
+
+
+@router.get("/kanji/deck", response_model=FlashcardDeckResponse)
+async def get_flashcard_deck(
+    seed: Optional[int] = None,
+    size: int = 50,
+    jlpt: Optional[int] = None,
+    grade: Optional[int] = None,
+    strokes_min: Optional[int] = None,
+    strokes_max: Optional[int] = None,
+    radical: List[str] = Query(default=[]),
+    reading_row: Optional[str] = None,
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Build a reproducible flashcard deck from the browser's filters.
+
+    Same filter params as `/kanji`, plus:
+    - **seed**: RNG seed; drives deck order AND per-kanji example choice. If
+      omitted, one is generated and echoed back so the deck can be reproduced.
+    - **size**: number of cards (1–200, default 50).
+
+    Only kanji that have a usable example sentence are included.
+
+    NOTE: declared before `/kanji/{character}` so "deck" isn't matched as a char.
+    """
+    if seed is None:
+        seed = random.randrange(2 ** 31)
+    size = min(max(1, size), 200)
+    filt = KanjiFilter(
+        jlpt=jlpt,
+        grade=grade,
+        strokes_min=strokes_min,
+        strokes_max=strokes_max,
+        radicals=radical,
+        reading_row=reading_row,
+        q=q,
+    )
+    return KanjiService.build_deck(db, filt, seed=seed, size=size)
 
 
 @router.get("/radicals", response_model=List[RadicalListItem])

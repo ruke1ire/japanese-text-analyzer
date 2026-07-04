@@ -86,7 +86,9 @@ export function createStatBadges(kanjiData) {
     };
 
     if (kanjiData.stroke_count) add(`${kanjiData.stroke_count} strokes`, 'badge-strokes');
-    if (kanjiData.jlpt_level) add(`N${kanjiData.jlpt_level}`, 'badge-jlpt');
+    // KANJIDIC JLPT is the pre-2010 4-level scale, so show "JLPT 4" not "N4"
+    // (the "N" prefix is specifically the post-2010 scale, which has no data here).
+    if (kanjiData.jlpt_level) add(`JLPT ${kanjiData.jlpt_level}`, 'badge-jlpt');
     const grade = formatGrade(kanjiData.grade);
     if (grade) add(grade, 'badge-grade');
     if (kanjiData.frequency) add(`#${kanjiData.frequency}`, 'badge-freq');
