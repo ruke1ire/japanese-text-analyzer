@@ -2,7 +2,10 @@
  * API client for Japanese Text Analyzer backend
  */
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Derive the backend URL from the page's host so the app works both when the
+// stack runs on the same machine (localhost) and when it's served to other PCs
+// over the LAN. The backend is expected on port 8000 of the same host.
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:8000/api`;
 
 export class JapaneseAnalyzerAPI {
     constructor(baseURL = API_BASE_URL) {
