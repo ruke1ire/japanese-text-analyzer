@@ -54,7 +54,7 @@ export function showKanjiDetails(kanjiData, modal, onWordClick, onRadicalClick) 
 
     // JLPT level
     if (kanjiData.jlpt_level) {
-        const jlptGroup = createInfoGroup('JLPT Level', `N${kanjiData.jlpt_level}`);
+        const jlptGroup = createInfoGroup('JLPT Level', `Level ${kanjiData.jlpt_level} (pre-2010 scale)`);
         details.appendChild(jlptGroup);
     }
 

@@ -188,11 +188,15 @@ export function renderBrowserControls(container, { radicals = [], onChange }) {
     );
     container.appendChild(row1);
 
-    // Row 2: JLPT toggle group
+    // Row 2: JLPT toggle group.
+    // KANJIDIC carries the PRE-2010 4-level JLPT tag (Level 4–1, no N5), so we
+    // deliberately avoid the modern "N4" notation — old Level 4 ≈ today's N5–N4.
     const jlpt = makeToggleGroup('filter-toggle-group', [
         { key: '', label: 'All' },
-        ...JLPT_LEVELS.map(n => ({ key: String(n), label: `N${n}` })),
+        ...JLPT_LEVELS.map(n => ({ key: String(n), label: String(n) })),
     ]);
+    jlpt.wrap.title = "KANJIDIC uses the pre-2010 JLPT scale (Level 4–1). "
+        + "Old Level 4 roughly covers today's N5 and N4, which is why there's no N5.";
     Object.entries(jlpt.byKey).forEach(([key, btn]) => {
         btn.addEventListener('click', () => emit({ jlpt: key ? Number(key) : null }));
     });
@@ -220,7 +224,7 @@ export function renderBrowserControls(container, { radicals = [], onChange }) {
     const row2 = document.createElement('div');
     row2.className = 'browser-controls-row';
     row2.append(
-        labeledField('JLPT', jlpt.wrap),
+        labeledField('JLPT (old)', jlpt.wrap),
         labeledField('Grade', grade),
         labeledField('Strokes', strokeMin, strokeDash, strokeMax),
     );
@@ -278,7 +282,7 @@ export function renderBrowserControls(container, { radicals = [], onChange }) {
             chips.appendChild(chip);
         };
         if (state.q) add(`“${state.q}”`, { q: null });
-        if (state.jlpt) add(`N${state.jlpt}`, { jlpt: null });
+        if (state.jlpt) add(`JLPT ${state.jlpt}`, { jlpt: null });
         if (state.grade) {
             const g = GRADES.find(x => x.value === state.grade);
             add(g ? g.label : `Grade ${state.grade}`, { grade: null });
